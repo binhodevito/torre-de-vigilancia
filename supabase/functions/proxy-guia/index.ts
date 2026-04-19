@@ -39,7 +39,7 @@ try {
   const resposta = await fetch(urlAlvo, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; TorreDeVigilancia/1.0)',
-      'Accept':     'text/html,application/xhtml+xml',
+      'Accept':     'text/html,application/xhtml+xml,image/*,*/*',
       'Accept-Language': 'pt-BR,pt;q=0.9',
     },
     signal: AbortSignal.timeout(15000),
@@ -52,6 +52,21 @@ try {
     });
   }
 
+  // Imagens: retorna binário direto
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(path.split('?')[0])) {
+    const buf = await resposta.arrayBuffer();
+    const ct  = resposta.headers.get('content-type') || 'image/jpeg';
+    return new Response(buf, {
+      status: 200,
+      headers: {
+        'Content-Type':                ct,
+        'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+        'Cache-Control':               'public, max-age=86400',
+      },
+    });
+  }
+
+  // HTML: retorna JSON com campo contents
   const html = await resposta.text();
 
   return new Response(JSON.stringify({ contents: html }), {

@@ -17,7 +17,7 @@ const BASE_GUIA  = 'http://www.guiadosquadrinhos.com';
 // URL de busca correta descoberta em abr/2026 (o /busca?p= retorna 404)
 const BUSCA_GUIA = `${BASE_GUIA}/busca-avancada-resultado.aspx?tit=`;
 const DELAY_MS    = 1500;
-const MAX_RESULTS = 10;
+const MAX_RESULTS = 20;
 
 let _ultimaRequisicao = 0;
 
@@ -54,15 +54,24 @@ try {
 }
 }
 
-// ── Normaliza URL de imagem ────────────────────────────────
+// ── Normaliza URL de imagem — roteada pelo proxy para evitar mixed-content ──
 function normalizarUrlImagem(src) {
 if (!src) return '';
 const s = src.trim();
 // Descarta placeholders do Guia
 if (!s || s.includes('nocovert') || s.includes('coversoont')) return '';
-if (s.startsWith('http')) return s;
-if (s.startsWith('//'))   return 'http:' + s;
-return BASE_GUIA + (s.startsWith('/') ? '' : '/') + s;
+
+// Extrai o path relativo para passar ao proxy
+let imgPath;
+if (s.startsWith('http')) {
+  imgPath = s.replace(/^https?:\/\/www\.guiadosquadrinhos\.com/, '');
+} else if (s.startsWith('//')) {
+  imgPath = s.replace(/^\/\/www\.guiadosquadrinhos\.com/, '');
+} else {
+  imgPath = (s.startsWith('/') ? '' : '/') + s;
+}
+
+return PROXY_URL + encodeURIComponent(imgPath);
 }
 
 // ── Gera ID único a partir da URL da edição ────────────────
