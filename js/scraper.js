@@ -9,11 +9,12 @@
 //  - Se falhar: cadastro manual sempre disponível
 // ============================================================
 
-'use strict'; // ✅ FIX: movido para depois dos comentários
+'use strict';
 
-const PROXY_URL   = 'https://api.allorigins.win/get?url=';
-const BASE_GUIA   = 'http://www.guiadosquadrinhos.com';
-const BUSCA_GUIA  = `${BASE_GUIA}/busca?p=`;
+// ✅ Proxy próprio via Supabase Edge Function (substitui allorigins.win)
+const PROXY_URL  = 'https://alxrzpclqmhdzcmsxjbq.supabase.co/functions/v1/proxy-guia?path=';
+const BASE_GUIA  = 'http://www.guiadosquadrinhos.com';
+const BUSCA_GUIA = `${BASE_GUIA}/busca?p=`;
 const DELAY_MS    = 1500;
 const MAX_RESULTS = 10;
 
@@ -29,9 +30,7 @@ if (decorrido < DELAY_MS) {
 _ultimaRequisicao = Date.now();
 }
 
-// ── Busca com proxy CORS ───────────────────────────────────
-// ✅ FIX 12: AbortController manual no lugar de AbortSignal.timeout()
-//    para compatibilidade com browsers mais antigos
+// ── Busca com proxy CORS próprio ───────────────────────────
 async function buscarViProxy(url) {
 await aguardarDelay();
 
@@ -39,14 +38,24 @@ const controller = new AbortController();
 const timer      = setTimeout(() => controller.abort(), 15000);
 
 try {
-  const proxyUrl = PROXY_URL + encodeURIComponent(url);
-  const resposta = await fetch(proxyUrl, { signal: controller.signal });
+  // Extrai só o path para enviar ao proxy
+  const path     = url.replace(BASE_GUIA, '');
+  const proxyUrl = PROXY_URL + encodeURIComponent(path);
+
+  const resposta = await fetch(proxyUrl, {
+    signal:  controller.signal,
+    headers: {
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+
   if (!resposta.ok) throw new Error(`Proxy retornou ${resposta.status}`);
   const json = await resposta.json();
   if (!json.contents) throw new Error('Proxy sem conteúdo');
   return json.contents;
+
 } finally {
-  clearTimeout(timer); // sempre limpa o timer, com ou sem erro
+  clearTimeout(timer);
 }
 }
 
@@ -172,8 +181,6 @@ return { capa_url: capaUrl, artistas, personagens };
 }
 
 // ── Função principal de busca ──────────────────────────────
-// ✅ FIX 10: Promise.allSettled garante que uma falha de cache
-//    não derruba os resultados inteiros do scraping
 async function buscarGibis(termo) {
 if (!termo || termo.trim().length < 2) return [];
 
@@ -195,9 +202,7 @@ const resultadosCache = await Promise.allSettled(
     try {
       const cached = await apiGetCacheGuia(gibi.id_guia);
       if (cached) return { ...gibi, ...cached, _do_cache: true };
-    } catch (_) {
-      // falha silenciosa — retorna gibi sem cache
-    }
+    } catch (_) {}
     return gibi;
   })
 );
@@ -208,7 +213,6 @@ return resultadosCache
 }
 
 // ── Busca por URL direta de uma edição ────────────────────
-// ✅ FIX 11: tenta encontrar container específico antes de usar body
 async function buscarGibiPorUrl(url) {
 const cached = await apiGetCacheGuia(gerarIdGuia(url));
 if (cached) return cached;
@@ -217,7 +221,6 @@ const html   = await buscarViProxy(url);
 const parser = new DOMParser();
 const doc    = parser.parseFromString(html, 'text/html');
 
-// Tenta container específico antes de cair no body
 const el   = doc.querySelector('.edicao-detalhe, .detalhe-edicao, article.edicao, main')
            || doc.querySelector('body');
 const gibi = parsearElementoGibi(el);
@@ -225,10 +228,9 @@ const gibi = parsearElementoGibi(el);
 gibi.url_original = url;
 gibi.id_guia      = gerarIdGuia(url);
 
-// Enriquece com detalhes de resolução maior
 const detalhes = await buscarDetalhesEdicao(url).catch(() => ({}));
-if (detalhes.capa_url)  gibi.capa_url  = detalhes.capa_url;
-if (detalhes.artistas)  gibi.artistas  = detalhes.artistas;
+if (detalhes.capa_url)    gibi.capa_url    = detalhes.capa_url;
+if (detalhes.artistas)    gibi.artistas    = detalhes.artistas;
 if (detalhes.personagens) gibi.personagens = detalhes.personagens;
 
 if (gibi.titulo) await apiSalvarCacheGuia(gibi);
@@ -246,12 +248,12 @@ await apiSalvarCacheGuia(gibi);
 function criarGibiManual(dados) {
 return {
   id_guia:      'manual_' + Date.now().toString(36),
-  titulo:       dados.titulo   || '',
-  numero:       dados.numero   || '',
-  editora:      dados.editora  || '',
-  ano:          dados.ano      || '',
-  capa_url:     dados.capa_url || '',
-  artistas:     dados.artistas || '',
+  titulo:       dados.titulo       || '',
+  numero:       dados.numero       || '',
+  editora:      dados.editora      || '',
+  ano:          dados.ano          || '',
+  capa_url:     dados.capa_url     || '',
+  artistas:     dados.artistas     || '',
   personagens:  dados.personagens  || '',
   url_original: dados.url_original || '',
 };
