@@ -85,9 +85,12 @@ function mostrarTelaApp() {
 }
 
 function configurarTelaLogin() {
+  console.log('[Auth] configurarTelaLogin chamada');
+
   // Helper para adicionar event listener de forma segura
   const addClickListener = (id, callback) => {
     const el = document.getElementById(id);
+    console.log(`[Auth] addClickListener: ${id} -> ${el ? 'encontrado' : 'não encontrado'}`);
     if (el) el.addEventListener('click', callback);
   };
 
@@ -97,15 +100,16 @@ function configurarTelaLogin() {
   const formMagic = document.getElementById('form-magic');
   const formEsqueci = document.getElementById('form-esqueci');
 
-  console.debug('[Auth] inicializando tela de login', {
-    formLogin,
-    formCadastro,
-    formMagic,
-    formEsqueci,
+  console.log('[Auth] Elementos encontrados:', {
+    formLogin: !!formLogin,
+    formCadastro: !!formCadastro,
+    formMagic: !!formMagic,
+    formEsqueci: !!formEsqueci,
   });
 
   // ── Navegação entre formulários ──
   addClickListener('btn-ir-cadastro', () => {
+    console.log('[Auth] btn-ir-cadastro clicado');
     formLogin.classList.add('oculto');
     formMagic.classList.add('oculto');
     formEsqueci?.classList.add('oculto');

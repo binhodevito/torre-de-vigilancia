@@ -21,6 +21,7 @@ const Estado = {
 
 // ── Inicialização ──────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[App] DOMContentLoaded - chamando configurarTelaLogin');
   configurarTelaLogin();
 
   // Escuta mudanças de autenticação (login, logout, magic link)
