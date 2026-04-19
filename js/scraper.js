@@ -11,10 +11,11 @@
 
 'use strict';
 
-// ✅ Proxy próprio via Supabase Edge Function (substitui allorigins.win)
+// Proxy próprio via Supabase Edge Function (verify_jwt = false)
 const PROXY_URL  = 'https://alxrzpclqmhdzcmsxjbq.supabase.co/functions/v1/proxy-guia?path=';
 const BASE_GUIA  = 'http://www.guiadosquadrinhos.com';
-const BUSCA_GUIA = `${BASE_GUIA}/busca?p=`;
+// URL de busca correta descoberta em abr/2026 (o /busca?p= retorna 404)
+const BUSCA_GUIA = `${BASE_GUIA}/busca-avancada-resultado.aspx?tit=`;
 const DELAY_MS    = 1500;
 const MAX_RESULTS = 10;
 
@@ -38,16 +39,10 @@ const controller = new AbortController();
 const timer      = setTimeout(() => controller.abort(), 15000);
 
 try {
-  // Extrai só o path para enviar ao proxy
   const path     = url.replace(BASE_GUIA, '');
   const proxyUrl = PROXY_URL + encodeURIComponent(path);
 
-  const resposta = await fetch(proxyUrl, {
-    signal:  controller.signal,
-    headers: {
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
+  const resposta = await fetch(proxyUrl, { signal: controller.signal });
 
   if (!resposta.ok) throw new Error(`Proxy retornou ${resposta.status}`);
   const json = await resposta.json();
@@ -62,13 +57,21 @@ try {
 // ── Normaliza URL de imagem ────────────────────────────────
 function normalizarUrlImagem(src) {
 if (!src) return '';
-if (src.startsWith('http')) return src;
-if (src.startsWith('//'))   return 'http:' + src;
-return BASE_GUIA + (src.startsWith('/') ? '' : '/') + src;
+const s = src.trim();
+// Descarta placeholders do Guia
+if (!s || s.includes('nocovert') || s.includes('coversoont')) return '';
+if (s.startsWith('http')) return s;
+if (s.startsWith('//'))   return 'http:' + s;
+return BASE_GUIA + (s.startsWith('/') ? '' : '/') + s;
 }
 
 // ── Gera ID único a partir da URL da edição ────────────────
 function gerarIdGuia(urlEdicao) {
+// Formato novo: edicao/slug/codigo/ID  (ex: edicao/batman-n-1/ab01/187196)
+const matchNovo = urlEdicao.match(/edicao\/[^\/]+\/[^\/]+\/(\d+)/i);
+if (matchNovo) return matchNovo[1];
+
+// Formatos antigos de fallback
 const match = urlEdicao.match(/\/edicao\/(\d+)/i)
   || urlEdicao.match(/edicao=(\d+)/i)
   || urlEdicao.match(/id=(\d+)/i);
@@ -87,30 +90,40 @@ const parser = new DOMParser();
 const doc    = parser.parseFromString(html, 'text/html');
 const itens  = [];
 
-const selectors = [
-  '.resultados-busca .item-resultado',
-  '.lista-edicoes .edicao',
-  '.grid-edicoes .card',
-  'table.tabela-busca tr[data-id]',
-  '.resultado-item',
-];
+// Estrutura atual do Guia (2026): div.Lista_album_imagem_colecao > li
+let elementos = [...doc.querySelectorAll('.Lista_album_imagem_colecao li')];
 
-let elementos = [];
-for (const sel of selectors) {
-  elementos = [...doc.querySelectorAll(sel)];
-  if (elementos.length > 0) break;
+// Fallback para selectors antigos
+if (elementos.length === 0) {
+  const selectors = [
+    '.resultados-busca .item-resultado',
+    '.lista-edicoes .edicao',
+    '.grid-edicoes .card',
+    'table.tabela-busca tr[data-id]',
+    '.resultado-item',
+  ];
+  for (const sel of selectors) {
+    elementos = [...doc.querySelectorAll(sel)];
+    if (elementos.length > 0) break;
+  }
 }
 
 if (elementos.length === 0) {
-  const links = [...doc.querySelectorAll('a[href*="/edicao/"], a[href*="edicao="]')];
-  const pais  = new Set(links.map(l => l.closest('td, li, div.item, div.card, article') || l.parentElement));
+  const links = [...doc.querySelectorAll('a[href*="edicao/"]')];
+  const pais  = new Set(links.map(l => l.closest('li, td, div.item, div.card, article') || l.parentElement));
   elementos   = [...pais].filter(Boolean);
 }
 
-for (const el of elementos.slice(0, MAX_RESULTS)) {
+// O Guia repete cada edição 2x na página — deduplica por URL
+const urlsVistas = new Set();
+for (const el of elementos) {
   try {
     const gibi = parsearElementoGibi(el);
-    if (gibi && gibi.titulo) itens.push(gibi);
+    if (gibi && gibi.titulo && !urlsVistas.has(gibi.url_original)) {
+      urlsVistas.add(gibi.url_original);
+      itens.push(gibi);
+      if (itens.length >= MAX_RESULTS) break;
+    }
   } catch (_) {}
 }
 
@@ -119,39 +132,58 @@ return itens;
 
 // ── Parser de um elemento de gibi ─────────────────────────
 function parsearElementoGibi(el) {
-const linkEl   = el.querySelector('a[href*="/edicao/"], a[href*="edicao="]') || el.closest('a');
-const urlRel   = linkEl?.getAttribute('href') || '';
-const urlOrig  = urlRel ? (urlRel.startsWith('http') ? urlRel : BASE_GUIA + urlRel) : '';
-const idGuia   = urlOrig ? gerarIdGuia(urlOrig) : '';
+const linkEl  = el.querySelector('a[href*="edicao/"]') || el.closest('a');
+const urlRel  = linkEl?.getAttribute('href') || '';
+const urlOrig = urlRel
+  ? (urlRel.startsWith('http') ? urlRel : BASE_GUIA + '/' + urlRel.replace(/^\//, ''))
+  : '';
+const idGuia  = urlOrig ? gerarIdGuia(urlOrig) : '';
 
 const imgEl   = el.querySelector('img');
-const capaUrl = normalizarUrlImagem(imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || '');
+const capaUrl = normalizarUrlImagem(
+  (imgEl?.getAttribute('src') || imgEl?.getAttribute('data-src') || '').trim()
+);
 
-const textoCompleto = el.textContent || '';
+let titulo = '', editora = '', numero = '', ano = '';
 
-const tituloEl = el.querySelector('.titulo, .nome, h2, h3, h4, .edicao-titulo, [class*="titulo"], [class*="nome"]');
-let titulo      = (tituloEl?.textContent || '').trim();
-if (!titulo) {
-  titulo = imgEl?.getAttribute('alt') || linkEl?.getAttribute('title') || '';
+const capinhaEl = el.querySelector('.numero_capinha');
+if (capinhaEl) {
+  // Formato atual: "Título n° N - Editora" dentro de .numero_capinha
+  const textoCapinha = capinhaEl.textContent.replace(/\s+/g, ' ').trim();
+  const partes = textoCapinha.split(' - ');
+  const tituloComNum = (partes[0] || '').trim();
+  editora = (partes[1] || '').trim();
+
+  const numMatch = tituloComNum.match(/n[°o°\.]\s*(\d+)/i) || tituloComNum.match(/#\s*(\d+)/);
+  numero = numMatch ? numMatch[1] : '';
+  titulo = tituloComNum.replace(/\s*n[°o°\.]\s*\d+/i, '').replace(/\s*#\s*\d+/, '').trim();
+  if (!titulo) titulo = tituloComNum;
+
+  // Data vem após o </span>: ex: " dezembro  2025"
+  const linkParent = capinhaEl.closest('a') || capinhaEl.parentElement;
+  const textoData  = linkParent?.textContent || '';
+  const anoMatch   = textoData.match(/\b(19|20)\d{2}\b/);
+  ano = anoMatch ? anoMatch[0] : '';
+} else {
+  // Fallback para estruturas mais antigas
+  const textoCompleto = el.textContent || '';
+  const tituloEl = el.querySelector('.titulo, .nome, h2, h3, h4, .edicao-titulo, [class*="titulo"]');
+  titulo = (tituloEl?.textContent
+    || imgEl?.getAttribute('alt')
+    || linkEl?.getAttribute('title')
+    || '').replace(/\s+/g, ' ').trim();
+
+  const numMatch = textoCompleto.match(/[Nn][ºo°]\.?\s*(\d+)/) || textoCompleto.match(/#\s*(\d+)/);
+  numero = numMatch ? numMatch[1] : '';
+
+  const editoraEl = el.querySelector('.editora, [class*="editora"]');
+  editora = (editoraEl?.textContent || '').trim() || extrairEditora(textoCompleto);
+
+  const anoMatch = textoCompleto.match(/\b(19|20)\d{2}\b/);
+  ano = anoMatch ? anoMatch[0] : '';
 }
-titulo = titulo.replace(/\s+/g, ' ').trim();
 
-const numMatch = textoCompleto.match(/[Nn][ºo°]\.?\s*(\d+)/) || textoCompleto.match(/#\s*(\d+)/);
-const numero   = numMatch ? numMatch[1] : '';
-
-const editoraEl = el.querySelector('.editora, [class*="editora"]');
-const editora   = (editoraEl?.textContent || '').trim() || extrairEditora(textoCompleto);
-
-const anoMatch = textoCompleto.match(/\b(19|20)\d{2}\b/);
-const ano      = anoMatch ? anoMatch[0] : '';
-
-const artistasEl  = el.querySelector('.artistas, [class*="artistas"], [class*="autores"]');
-const artistas    = (artistasEl?.textContent || '').trim();
-
-const persEl      = el.querySelector('.personagens, [class*="personagens"], [class*="characters"]');
-const personagens = (persEl?.textContent || '').trim();
-
-return { id_guia: idGuia, titulo, numero, editora, ano, capa_url: capaUrl, artistas, personagens, url_original: urlOrig };
+return { id_guia: idGuia, titulo, numero, editora, ano, capa_url: capaUrl, artistas: '', personagens: '', url_original: urlOrig };
 }
 
 function extrairEditora(texto) {
@@ -221,7 +253,7 @@ const html   = await buscarViProxy(url);
 const parser = new DOMParser();
 const doc    = parser.parseFromString(html, 'text/html');
 
-const el   = doc.querySelector('.edicao-detalhe, .detalhe-edicao, article.edicao, main')
+const el   = doc.querySelector('.Lista_album_imagem_colecao li, .edicao-detalhe, .detalhe-edicao, article.edicao, main')
            || doc.querySelector('body');
 const gibi = parsearElementoGibi(el);
 
