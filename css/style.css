@@ -1306,7 +1306,12 @@ textarea:focus { border-color: var(--acento); }
 .sobre-nav {
   display: flex;
   gap: 4px;
-  margin-bottom: 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--fundo);
+  padding: 10px 0;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--borda);
   padding-bottom: 0;
 }
@@ -1323,6 +1328,7 @@ textarea:focus { border-color: var(--acento); }
 }
 
 .sobre-nav-link:hover { color: var(--acento); border-color: var(--acento); text-decoration: none; }
+.sobre-nav-link.ativo  { color: var(--acento); border-color: var(--acento); background: rgba(192,57,43,.07); }
 
 .sobre-ancora {
   /* Offset para compensar a navbar fixa */

@@ -364,15 +364,5 @@ if (telaAuth) {
   });
 }
 
-const btnLogout = document.getElementById('btn-logout');
-if (btnLogout) {
-  btnLogout.addEventListener('click', async () => {
-    try {
-      await fazerLogout();
-      invalidarCacheLocal();
-    } catch (err) {
-      mostrarToast(`Erro ao sair: ${err.message}`, 'erro');
-    }
-  });
-}
+// Logout é configurado em app.js via configurarLogout()
 }

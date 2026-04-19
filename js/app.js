@@ -27,6 +27,7 @@ Object.assign(Estado, chaves);
 document.addEventListener('DOMContentLoaded', async () => {
 console.log('[App] DOMContentLoaded - chamando configurarTelaLogin');
 configurarTelaLogin();
+configurarEventosPerfil();
 
 document.addEventListener('error', e => {
   if (e.target.tagName === 'IMG' && e.target.hasAttribute('data-onerror')) {
@@ -58,6 +59,7 @@ configurarNavegacao();
 configurarBusca();
 configurarFiltrosColecao();
 configurarModais();
+configurarLogout();
 
 apiGetColecao().then(c => { Estado.colecao = c || []; }).catch(() => {});
 
@@ -77,10 +79,18 @@ try {
   const avatarEl = document.getElementById('sidebar-avatar-mini');
   if (nomeEl)   nomeEl.textContent = nome;
   if (avatarEl) {
+    const iniciais = obterIniciais(nome);
     if (meta.avatar_url) {
-      avatarEl.innerHTML = `<img src="${escHtml(meta.avatar_url)}" alt="${escHtml(nome)}" onerror="this.parentElement.textContent='${escHtml(obterIniciais(nome))}'" style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+      const img = document.createElement('img');
+      img.src   = meta.avatar_url;
+      img.alt   = nome;
+      img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover';
+      img.onerror = () => { avatarEl.innerHTML = ''; avatarEl.textContent = iniciais; };
+      avatarEl.innerHTML = '';
+      avatarEl.appendChild(img);
     } else {
-      avatarEl.textContent = obterIniciais(nome);
+      avatarEl.innerHTML = '';
+      avatarEl.textContent = iniciais;
     }
   }
 } catch (_) {}
@@ -98,6 +108,16 @@ window.addEventListener('hashchange', async () => {
 });
 
 document.addEventListener('click', async e => {
+  // Âncoras internas do Sobre — previne hashchange que quebraria o router
+  const ancLink = e.target.closest('.sobre-nav-link[data-ancora]');
+  if (ancLink) {
+    e.preventDefault();
+    document.getElementById(ancLink.dataset.ancora)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.sobre-nav-link').forEach(l => l.classList.remove('ativo'));
+    ancLink.classList.add('ativo');
+    return;
+  }
+
   const link = e.target.closest('.nav-link, .bottom-nav-item');
   if (link) atualizarNavAtivo(link.dataset.rota || '');
 
@@ -930,51 +950,79 @@ if (e.ctrlKey && e.key === 'e') {
 }
 });
 
-// ── Perfil ─────────────────────────────────────────────────
+// ── Logout (sidebar + perfil) ─────────────────────────────
 
-let _perfilListenersOk = false;
+let _logoutListenerOk = false;
+
+function configurarLogout() {
+if (_logoutListenerOk) return;
+_logoutListenerOk = true;
+
+async function executarLogout(btn) {
+  const textoOriginal = btn?.textContent || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saindo…'; }
+  try {
+    await fazerLogout();
+    invalidarCacheLocal();
+  } catch (err) {
+    mostrarToast(`Erro ao sair: ${err.message}`, 'erro');
+    if (btn) { btn.disabled = false; btn.textContent = textoOriginal; }
+  }
+}
+
+document.getElementById('btn-logout')?.addEventListener('click', function() {
+  executarLogout(this);
+});
+
+document.getElementById('btn-logout-perfil')?.addEventListener('click', function() {
+  executarLogout(this);
+});
+}
+
+// ── Perfil ─────────────────────────────────────────────────
 
 async function carregarPerfil() {
 try {
   const user = await getPerfil();
   const meta = user?.user_metadata || {};
 
-  document.getElementById('perfil-nome').value         = meta.nome         || '';
-  document.getElementById('perfil-username').value     = meta.username     || '';
-  document.getElementById('perfil-avatar-url').value   = meta.avatar_url   || '';
-  document.getElementById('perfil-email-atual').textContent = user?.email  || '—';
+  document.getElementById('perfil-nome').value              = meta.nome       || '';
+  document.getElementById('perfil-username').value          = meta.username   || '';
+  document.getElementById('perfil-avatar-url').value        = meta.avatar_url || '';
+  document.getElementById('perfil-email-atual').textContent = user?.email     || '—';
   document.getElementById('perfil-email-erro').textContent  = '';
   document.getElementById('perfil-senha-erro').textContent  = '';
 
-  atualizarAvatarPerfil(meta, meta.nome || user?.email || 'U');
-
-  if (!_perfilListenersOk) {
-    configurarEventosPerfil();
-    _perfilListenersOk = true;
-  }
+  atualizarAvatarPerfil(meta.avatar_url || '', meta.nome || user?.email || 'U');
 } catch (err) {
   mostrarToast(`Erro ao carregar perfil: ${err.message}`, 'erro');
 }
 }
 
-function atualizarAvatarPerfil(meta, nomeRef) {
+function atualizarAvatarPerfil(url, nomeRef) {
 const el = document.getElementById('perfil-avatar-preview');
 if (!el) return;
-if (meta.avatar_url) {
-  el.innerHTML = `<img src="${escHtml(meta.avatar_url)}" alt="Avatar"
-    onerror="this.parentElement.textContent='${escHtml(obterIniciais(nomeRef))}'"
-    style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+const iniciais = obterIniciais(nomeRef);
+if (url) {
+  const img = document.createElement('img');
+  img.src   = url;
+  img.alt   = 'Avatar';
+  img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover';
+  img.onerror = () => { el.innerHTML = ''; el.textContent = iniciais; };
+  el.innerHTML = '';
+  el.appendChild(img);
 } else {
-  el.textContent = obterIniciais(nomeRef);
+  el.innerHTML = '';
+  el.textContent = iniciais;
 }
 }
 
 function configurarEventosPerfil() {
 // Preview do avatar ao digitar URL
 document.getElementById('perfil-avatar-url')?.addEventListener('input', e => {
-  const meta = { avatar_url: e.target.value.trim() };
+  const url  = e.target.value.trim();
   const nome = document.getElementById('perfil-nome').value || 'U';
-  atualizarAvatarPerfil(meta, nome);
+  atualizarAvatarPerfil(url, nome);
 });
 
 // Salvar dados básicos
@@ -989,6 +1037,7 @@ document.getElementById('btn-salvar-perfil')?.addEventListener('click', async ()
   try {
     await atualizarPerfil(dados);
     await atualizarSidebarUsuario();
+    atualizarAvatarPerfil(dados.avatar_url, dados.nome || 'U');
     mostrarToast('Perfil atualizado!', 'sucesso');
   } catch (err) {
     mostrarToast(`Erro: ${err.message}`, 'erro');

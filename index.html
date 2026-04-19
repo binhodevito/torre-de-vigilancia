@@ -12,6 +12,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HS9LZY7BBJ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-HS9LZY7BBJ');
+  </script>
+
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -407,6 +417,16 @@
           <input type="file" id="input-importar-json" accept=".json" style="display:none" />
         </div>
 
+        <!-- Sair -->
+        <div class="perfil-secao">
+          <h2>Sessão</h2>
+          <p class="texto-sec">Encerra sua sessão neste dispositivo. Seus dados ficam salvos.</p>
+          <button class="btn btn-secundario" id="btn-logout-perfil">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sair da conta
+          </button>
+        </div>
+
         <!-- Zona de perigo -->
         <div class="perfil-secao perfil-zona-perigo">
           <h2>Zona de perigo</h2>
@@ -423,11 +443,11 @@
         <h1>Sobre</h1>
       </header>
 
-      <!-- Âncoras de navegação interna -->
-      <nav class="sobre-nav">
-        <a href="#sobre-projeto" class="sobre-nav-link">O projeto</a>
-        <a href="#sobre-dev"     class="sobre-nav-link">O desenvolvedor</a>
-        <a href="#sobre-creditos" class="sobre-nav-link">Créditos</a>
+      <!-- Âncoras de navegação interna (data-ancora para não acionar o router) -->
+      <nav class="sobre-nav" id="sobre-nav">
+        <a href="#" class="sobre-nav-link" data-ancora="sobre-projeto">O projeto</a>
+        <a href="#" class="sobre-nav-link" data-ancora="sobre-dev">O desenvolvedor</a>
+        <a href="#" class="sobre-nav-link" data-ancora="sobre-creditos">Créditos</a>
       </nav>
 
       <div class="manifesto">
@@ -447,12 +467,17 @@
             DC, mangá ou quadrinhos nacionais. Cada usuário tem sua própria conta,
             privada e só sua.
           </p>
+          <p>
+            <strong>Não há fins lucrativos com este projeto e nunca haverá.</strong>
+            Nenhuma propaganda, nenhum plano pago, nenhuma venda de dados.
+            É uma ferramenta criada por um leitor para leitores — e assim vai continuar.
+          </p>
         </div>
 
         <div class="manifesto-bloco">
           <h2>Filosofia do projeto</h2>
           <ul class="manifesto-lista">
-            <li>Gratuito para sempre, sem anúncios e sem fins comerciais</li>
+            <li>Gratuito para sempre, sem anúncios e <strong>sem fins lucrativos</strong></li>
             <li>Seus dados são seus — exportáveis a qualquer momento em JSON</li>
             <li>Código aberto — <a href="https://github.com/binhodevito/torre-de-vigilancia" target="_blank" rel="noopener">disponível no GitHub</a> para qualquer um copiar e adaptar</li>
             <li>Feito por leitores para toda a comunidade de quadrinhos</li>
@@ -478,20 +503,28 @@
           <h2>Por que criei isso</h2>
           <p>
             Sou jornalista e estrategista de conteúdo — passo o dia pensando em como
-            organizar informação de forma que faça sentido para as pessoas. Com gibis,
+            organizar informação de forma que faça sentido para as pessoas. Com quadrinhos,
             nunca consegui fazer o mesmo pela minha própria coleção.
           </p>
           <p>
-            Tentei planilhas, aplicativos genéricos de leitura, listas no celular.
-            Nenhum entendia o contexto dos quadrinhos brasileiros: editoras, números de
-            edição, a diferença entre ter o físico e ter lido. O
-            <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>
-            já tem todo o catálogo — faltava uma ferramenta para conectar esse catálogo
-            ao controle pessoal de leitura.
+            Tentei planilhas, aplicativos genéricos, listas no celular. Nenhum entendia
+            o contexto de quem coleciona: editoras, números de edição, a diferença entre
+            ter o físico e ter lido, e principalmente comparar os próprios hábitos
+            com os de pessoas próximas. Queria saber: o que meus amigos estão lendo?
+            Quantos gibis eu realmente li no último ano?
           </p>
           <p>
-            A Torre de Vigilância é isso: uma ponte entre o maior acervo de quadrinhos
-            brasileiros e a sua estante particular. Feita por um leitor, para leitores.
+            Além disso, estava procurando um projeto real para <strong>aprender SQL de
+            forma prática</strong> — não com dados inventados, mas com algo que fizesse
+            sentido pra mim. Modelar uma coleção de quadrinhos foi o pretexto perfeito.
+            O que começou como exercício virou ferramenta, e a ferramenta virou
+            esse projeto aberto.
+          </p>
+          <p>
+            O <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>
+            já tem todo o catálogo que eu precisava — faltava uma ferramenta para conectar
+            esse acervo ao controle pessoal de leitura. A Torre de Vigilância é essa ponte.
+            Feita por um leitor, para leitores.
           </p>
         </div>
 
@@ -500,16 +533,24 @@
         <div class="manifesto-bloco">
           <h2>Créditos e agradecimentos</h2>
           <p>
-            Os dados de catálogo, capas e informações das edições utilizados nesta
-            ferramenta são fornecidos pelo
-            <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>,
-            mantido há décadas por fãs voluntários. É o maior e mais completo catálogo
-            de quadrinhos brasileiros — um patrimônio da comunidade.
+            Todo o catálogo de edições, capas e informações que você vê nesta ferramenta
+            vem do <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener"><strong>Guia dos Quadrinhos</strong></a>
+            — um projeto mantido há décadas por fãs voluntários, com amor e dedicação à
+            memória dos quadrinhos brasileiros. É o maior e mais completo acervo do gênero.
+            Um patrimônio construído pela comunidade, para a comunidade.
           </p>
           <p>
-            Esta ferramenta consulta o Guia de forma respeitosa: cada edição é
-            acessada apenas uma vez, com delay entre requisições, e o resultado
-            fica em cache permanente para nunca sobrecarregar os servidores deles.
+            Se você ainda não conhece o Guia, vai por mim: é um lugar incrível.
+            Você vai perder horas descobrindo títulos que não sabia que existiam,
+            encontrando edições raras, e mergulhando fundo na história dos quadrinhos
+            publicados no Brasil. <strong>Visite. Explore. Contribua se puder.</strong>
+            Eles merecem todo o crédito — e todo o reconhecimento da comunidade.
+          </p>
+          <p>
+            A Torre de Vigilância consulta o Guia de forma respeitosa:
+            cada edição é acessada apenas uma vez, com delay entre requisições,
+            e o resultado fica em cache permanente para nunca sobrecarregar os servidores deles.
+            Os dados são deles. A ferramenta é apenas uma ponte.
           </p>
           <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener" class="manifesto-btn-guia">
             Visitar o Guia dos Quadrinhos ↗
