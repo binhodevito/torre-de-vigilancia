@@ -87,183 +87,194 @@ function mostrarTelaApp() {
 function configurarTelaLogin() {
   console.log('[Auth] configurarTelaLogin chamada');
 
-  // Helper para adicionar event listener de forma segura
-  const addClickListener = (id, callback) => {
-    const el = document.getElementById(id);
-    console.log(`[Auth] addClickListener: ${id} -> ${el ? 'encontrado' : 'não encontrado'}`);
-    if (el) el.addEventListener('click', callback);
-  };
-
-  // Obter referências aos elementos
-  const formLogin = document.getElementById('form-login');
-  const formCadastro = document.getElementById('form-cadastro');
-  const formMagic = document.getElementById('form-magic');
-  const formEsqueci = document.getElementById('form-esqueci');
-
-  console.log('[Auth] Elementos encontrados:', {
-    formLogin: !!formLogin,
-    formCadastro: !!formCadastro,
-    formMagic: !!formMagic,
-    formEsqueci: !!formEsqueci,
-  });
-
   // ── Navegação entre formulários ──
-  addClickListener('btn-ir-cadastro', () => {
-    console.log('[Auth] btn-ir-cadastro clicado');
-    formLogin.classList.add('oculto');
-    formMagic.classList.add('oculto');
-    formEsqueci?.classList.add('oculto');
-    formCadastro.classList.remove('oculto');
-    document.getElementById('cadastro-email')?.focus();
-  });
+  const btnIrCadastro = document.getElementById('btn-ir-cadastro');
+  if (btnIrCadastro) {
+    btnIrCadastro.addEventListener('click', () => {
+      console.log('[Auth] btn-ir-cadastro clicado');
+      document.getElementById('form-login').classList.add('oculto');
+      document.getElementById('form-magic').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.add('oculto');
+      document.getElementById('form-cadastro').classList.remove('oculto');
+      document.getElementById('cadastro-email')?.focus();
+    });
+  }
 
-  addClickListener('btn-ir-login', () => {
-    formCadastro.classList.add('oculto');
-    formMagic.classList.add('oculto');
-    formEsqueci?.classList.add('oculto');
-    formLogin.classList.remove('oculto');
-    document.getElementById('login-email')?.focus();
-  });
+  const btnIrLogin = document.getElementById('btn-ir-login');
+  if (btnIrLogin) {
+    btnIrLogin.addEventListener('click', () => {
+      console.log('[Auth] btn-ir-login clicado');
+      document.getElementById('form-cadastro').classList.add('oculto');
+      document.getElementById('form-magic').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.add('oculto');
+      document.getElementById('form-login').classList.remove('oculto');
+      document.getElementById('login-email')?.focus();
+    });
+  }
 
-  addClickListener('btn-ir-magic', () => {
-    formLogin.classList.add('oculto');
-    formCadastro.classList.add('oculto');
-    formEsqueci?.classList.add('oculto');
-    formMagic.classList.remove('oculto');
-    document.getElementById('magic-email')?.focus();
-  });
+  const btnIrMagic = document.getElementById('btn-ir-magic');
+  if (btnIrMagic) {
+    btnIrMagic.addEventListener('click', () => {
+      console.log('[Auth] btn-ir-magic clicado');
+      document.getElementById('form-login').classList.add('oculto');
+      document.getElementById('form-cadastro').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.add('oculto');
+      document.getElementById('form-magic').classList.remove('oculto');
+      document.getElementById('magic-email')?.focus();
+    });
+  }
 
-  addClickListener('btn-voltar-login', () => {
-    formCadastro.classList.add('oculto');
-    formMagic.classList.add('oculto');
-    formEsqueci?.classList.add('oculto');
-    formLogin.classList.remove('oculto');
-  });
+  const btnVoltarLogin = document.getElementById('btn-voltar-login');
+  if (btnVoltarLogin) {
+    btnVoltarLogin.addEventListener('click', () => {
+      console.log('[Auth] btn-voltar-login clicado');
+      document.getElementById('form-cadastro').classList.add('oculto');
+      document.getElementById('form-magic').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.add('oculto');
+      document.getElementById('form-login').classList.remove('oculto');
+    });
+  }
 
-  addClickListener('btn-ir-esqueci', () => {
-    formLogin.classList.add('oculto');
-    formCadastro.classList.add('oculto');
-    formMagic.classList.add('oculto');
-    formEsqueci?.classList.remove('oculto');
-    document.getElementById('esqueci-email')?.focus();
-  });
+  const btnIrEsqueci = document.getElementById('btn-ir-esqueci');
+  if (btnIrEsqueci) {
+    btnIrEsqueci.addEventListener('click', () => {
+      console.log('[Auth] btn-ir-esqueci clicado');
+      document.getElementById('form-login').classList.add('oculto');
+      document.getElementById('form-cadastro').classList.add('oculto');
+      document.getElementById('form-magic').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.remove('oculto');
+      document.getElementById('esqueci-email')?.focus();
+    });
+  }
 
-  addClickListener('btn-voltar-esqueci', () => {
-    formCadastro.classList.add('oculto');
-    formMagic.classList.add('oculto');
-    formEsqueci?.classList.add('oculto');
-    formLogin.classList.remove('oculto');
-  });
+  const btnVoltarEsqueci = document.getElementById('btn-voltar-esqueci');
+  if (btnVoltarEsqueci) {
+    btnVoltarEsqueci.addEventListener('click', () => {
+      console.log('[Auth] btn-voltar-esqueci clicado');
+      document.getElementById('form-cadastro').classList.add('oculto');
+      document.getElementById('form-magic').classList.add('oculto');
+      document.getElementById('form-esqueci')?.classList.add('oculto');
+      document.getElementById('form-login').classList.remove('oculto');
+    });
+  }
 
   // ── Submits de formulários ──
-  addClickListener('btn-login', async () => {
-    const email = document.getElementById('login-email').value.trim();
-    const senha = document.getElementById('login-senha').value;
-    const btn = document.getElementById('btn-login');
-    const erroEl = document.getElementById('login-erro');
+  const btnLogin = document.getElementById('btn-login');
+  if (btnLogin) {
+    btnLogin.addEventListener('click', async () => {
+      const email = document.getElementById('login-email').value.trim();
+      const senha = document.getElementById('login-senha').value;
+      const erroEl = document.getElementById('login-erro');
 
-    if (!email || !senha) {
-      erroEl.textContent = 'Preencha e-mail e senha.';
-      return;
-    }
+      if (!email || !senha) {
+        erroEl.textContent = 'Preencha e-mail e senha.';
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = 'Entrando…';
-    erroEl.textContent = '';
+      btnLogin.disabled = true;
+      btnLogin.textContent = 'Entrando…';
+      erroEl.textContent = '';
 
-    try {
-      await fazerLogin(email, senha);
-    } catch (err) {
-      erroEl.textContent = err.message;
-      btn.disabled = false;
-      btn.textContent = 'Entrar';
-    }
-  });
+      try {
+        await fazerLogin(email, senha);
+      } catch (err) {
+        erroEl.textContent = err.message;
+        btnLogin.disabled = false;
+        btnLogin.textContent = 'Entrar';
+      }
+    });
+  }
 
-  addClickListener('btn-cadastro', async () => {
-    const email = document.getElementById('cadastro-email').value.trim();
-    const senha = document.getElementById('cadastro-senha').value;
-    const btn = document.getElementById('btn-cadastro');
-    const erroEl = document.getElementById('cadastro-erro');
+  const btnCadastro = document.getElementById('btn-cadastro');
+  if (btnCadastro) {
+    btnCadastro.addEventListener('click', async () => {
+      const email = document.getElementById('cadastro-email').value.trim();
+      const senha = document.getElementById('cadastro-senha').value;
+      const erroEl = document.getElementById('cadastro-erro');
 
-    if (!email || !senha) {
-      erroEl.textContent = 'Preencha e-mail e senha.';
-      return;
-    }
+      if (!email || !senha) {
+        erroEl.textContent = 'Preencha e-mail e senha.';
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = 'Criando conta…';
-    erroEl.textContent = '';
+      btnCadastro.disabled = true;
+      btnCadastro.textContent = 'Criando conta…';
+      erroEl.textContent = '';
 
-    try {
-      await fazerCadastro(email, senha);
-      erroEl.style.color = 'var(--lido)';
-      erroEl.textContent = 'Conta criada! Verifique seu e-mail para confirmar.';
-      btn.disabled = false;
-      btn.textContent = 'Criar conta';
-    } catch (err) {
-      erroEl.style.color = '';
-      erroEl.textContent = err.message;
-      btn.disabled = false;
-      btn.textContent = 'Criar conta';
-    }
-  });
+      try {
+        await fazerCadastro(email, senha);
+        erroEl.style.color = 'var(--lido)';
+        erroEl.textContent = 'Conta criada! Verifique seu e-mail para confirmar.';
+        btnCadastro.disabled = false;
+        btnCadastro.textContent = 'Criar conta';
+      } catch (err) {
+        erroEl.style.color = '';
+        erroEl.textContent = err.message;
+        btnCadastro.disabled = false;
+        btnCadastro.textContent = 'Criar conta';
+      }
+    });
+  }
 
-  addClickListener('btn-magic', async () => {
-    const email = document.getElementById('magic-email').value.trim();
-    const btn = document.getElementById('btn-magic');
-    const erroEl = document.getElementById('magic-erro');
+  const btnMagic = document.getElementById('btn-magic');
+  if (btnMagic) {
+    btnMagic.addEventListener('click', async () => {
+      const email = document.getElementById('magic-email').value.trim();
+      const erroEl = document.getElementById('magic-erro');
 
-    if (!email) {
-      erroEl.textContent = 'Informe seu e-mail.';
-      return;
-    }
+      if (!email) {
+        erroEl.textContent = 'Informe seu e-mail.';
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = 'Enviando…';
-    erroEl.textContent = '';
+      btnMagic.disabled = true;
+      btnMagic.textContent = 'Enviando…';
+      erroEl.textContent = '';
 
-    try {
-      await enviarMagicLink(email);
-      erroEl.style.color = 'var(--lido)';
-      erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
-      btn.disabled = false;
-      btn.textContent = 'Enviar link';
-    } catch (err) {
-      erroEl.style.color = '';
-      erroEl.textContent = err.message;
-      btn.disabled = false;
-      btn.textContent = 'Enviar link';
-    }
-  });
+      try {
+        await enviarMagicLink(email);
+        erroEl.style.color = 'var(--lido)';
+        erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
+        btnMagic.disabled = false;
+        btnMagic.textContent = 'Enviar link';
+      } catch (err) {
+        erroEl.style.color = '';
+        erroEl.textContent = err.message;
+        btnMagic.disabled = false;
+        btnMagic.textContent = 'Enviar link';
+      }
+    });
+  }
 
-  addClickListener('btn-esqueci', async () => {
-    const email = document.getElementById('esqueci-email').value.trim();
-    const btn = document.getElementById('btn-esqueci');
-    const erroEl = document.getElementById('esqueci-erro');
+  const btnEsqueci = document.getElementById('btn-esqueci');
+  if (btnEsqueci) {
+    btnEsqueci.addEventListener('click', async () => {
+      const email = document.getElementById('esqueci-email').value.trim();
+      const erroEl = document.getElementById('esqueci-erro');
 
-    if (!email) {
-      erroEl.textContent = 'Informe seu e-mail.';
-      return;
-    }
+      if (!email) {
+        erroEl.textContent = 'Informe seu e-mail.';
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = 'Enviando…';
-    erroEl.textContent = '';
+      btnEsqueci.disabled = true;
+      btnEsqueci.textContent = 'Enviando…';
+      erroEl.textContent = '';
 
-    try {
-      await enviarRedefinicaoSenha(email);
-      erroEl.style.color = 'var(--lido)';
-      erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
-      btn.disabled = false;
-      btn.textContent = 'Enviar link';
-    } catch (err) {
-      erroEl.style.color = '';
-      erroEl.textContent = err.message;
-      btn.disabled = false;
-      btn.textContent = 'Enviar link';
-    }
-  });
+      try {
+        await enviarRedefinicaoSenha(email);
+        erroEl.style.color = 'var(--lido)';
+        erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
+        btnEsqueci.disabled = false;
+        btnEsqueci.textContent = 'Enviar link';
+      } catch (err) {
+        erroEl.style.color = '';
+        erroEl.textContent = err.message;
+        btnEsqueci.disabled = false;
+        btnEsqueci.textContent = 'Enviar link';
+      }
+    });
+  }
 
   // ── Outros event listeners ──
   // Detecta se voltou do link de redefinição de senha (hash #redefinir-senha)
@@ -281,21 +292,32 @@ function configurarTelaLogin() {
   }
 
   // Enter submete o formulário visível
-  document.getElementById('tela-auth').addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    if (!formLogin.classList.contains('oculto')) document.getElementById('btn-login')?.click();
-    if (!formCadastro.classList.contains('oculto')) document.getElementById('btn-cadastro')?.click();
-    if (!formMagic.classList.contains('oculto')) document.getElementById('btn-magic')?.click();
-    if (formEsqueci && !formEsqueci.classList.contains('oculto')) document.getElementById('btn-esqueci')?.click();
-  });
+  const telaAuth = document.getElementById('tela-auth');
+  if (telaAuth) {
+    telaAuth.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const formLogin = document.getElementById('form-login');
+      const formCadastro = document.getElementById('form-cadastro');
+      const formMagic = document.getElementById('form-magic');
+      const formEsqueci = document.getElementById('form-esqueci');
+
+      if (formLogin && !formLogin.classList.contains('oculto')) document.getElementById('btn-login')?.click();
+      if (formCadastro && !formCadastro.classList.contains('oculto')) document.getElementById('btn-cadastro')?.click();
+      if (formMagic && !formMagic.classList.contains('oculto')) document.getElementById('btn-magic')?.click();
+      if (formEsqueci && !formEsqueci.classList.contains('oculto')) document.getElementById('btn-esqueci')?.click();
+    });
+  }
 
   // Logout na sidebar
-  addClickListener('btn-logout', async () => {
-    try {
-      await fazerLogout();
-      invalidarCacheLocal();
-    } catch (err) {
-      mostrarToast(`Erro ao sair: ${err.message}`, 'erro');
-    }
-  });
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await fazerLogout();
+        invalidarCacheLocal();
+      } catch (err) {
+        mostrarToast(`Erro ao sair: ${err.message}`, 'erro');
+      }
+    });
+  }
 }
