@@ -97,6 +97,19 @@ function configurarTelaLogin() {
   const btnVoltarEsqueci = document.getElementById('btn-voltar-esqueci');
   const formEsqueci    = document.getElementById('form-esqueci');
 
+  console.debug('[Auth] inicializando tela de login', {
+    formLogin,
+    formCadastro,
+    formMagic,
+    formEsqueci,
+    btnIrCadastro,
+    btnIrLogin,
+    btnIrMagic,
+    btnVoltarLogin,
+    btnIrEsqueci,
+    btnVoltarEsqueci,
+  });
+
   // Alterna entre os sub-formulários
   btnIrCadastro?.addEventListener('click', () => {
     formLogin.classList.add('oculto');
