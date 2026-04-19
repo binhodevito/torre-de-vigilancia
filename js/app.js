@@ -1,0 +1,891 @@
+// ============================================================
+// app.js — Torre de Vigilância
+// Lógica principal, roteamento e sugestões de busca
+// ============================================================
+
+// ── Estado global ──────────────────────────────────────────
+const Estado = {
+  rotaAtual:        'busca',
+  resultadosBusca:  [],
+  colecao:          [],
+  listas:           [],
+  gibiDetalhe:      null,
+  listaDetalhe:     null,
+  filtroColecao:    'todos',
+  buscaColecao:     '',
+  ordenacaoColecao: 'data_adicao',
+  _gibiParaAdicionar: null,
+  _statusModal:       'lido',
+  _notaModal:         0,
+};
+
+// ── Inicialização ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  configurarTelaLogin();
+
+  // Escuta mudanças de autenticação (login, logout, magic link)
+  ouvirMudancaAuth(async (event, session) => {
+    if (session) {
+      mostrarTelaApp();
+      await iniciarApp();
+    } else {
+      invalidarCacheLocal();
+      mostrarTelaLogin();
+    }
+  });
+
+  // Verifica sessão existente ao carregar
+  const sessao = await getSessaoAtual();
+  if (sessao) {
+    mostrarTelaApp();
+    await iniciarApp();
+  } else {
+    mostrarTelaLogin();
+  }
+});
+
+async function iniciarApp() {
+  configurarNavegacao();
+  configurarBusca();
+  configurarFiltrosColecao();
+  configurarModais();
+
+  // Pré-carrega coleção em background para sugestões instantâneas
+  apiGetColecao().then(c => { Estado.colecao = c || []; }).catch(() => {});
+
+  const hash = location.hash.replace('#', '') || 'busca';
+  await navegarPara(hash.split('/')[0], hash.split('/')[1]);
+}
+
+// ── Roteamento por hash ────────────────────────────────────
+function configurarNavegacao() {
+  window.addEventListener('hashchange', async () => {
+    const [rota, param] = location.hash.replace('#', '').split('/');
+    await navegarPara(rota || 'busca', param);
+  });
+
+  document.addEventListener('click', async e => {
+    const link = e.target.closest('.nav-link, .bottom-nav-item');
+    if (link) atualizarNavAtivo(link.dataset.rota || '');
+
+    if (e.target.closest('#btn-voltar'))       history.back();
+    if (e.target.closest('#btn-voltar-lista')) { await navegarPara('listas'); location.hash = 'listas'; }
+  });
+}
+
+async function navegarPara(rota, param = null) {
+  document.querySelectorAll('.tela').forEach(t => t.classList.add('oculto'));
+  Estado.rotaAtual = rota;
+  atualizarNavAtivo(rota);
+
+  switch (rota) {
+    case 'busca':
+      document.getElementById('tela-busca').classList.remove('oculto');
+      break;
+    case 'colecao':
+      document.getElementById('tela-colecao').classList.remove('oculto');
+      await carregarColecao();
+      break;
+    case 'detalhe':
+      document.getElementById('tela-detalhe').classList.remove('oculto');
+      if (param) await carregarDetalhe(param);
+      break;
+    case 'listas':
+      document.getElementById('tela-listas').classList.remove('oculto');
+      await carregarListas();
+      break;
+    case 'lista-detalhe':
+      document.getElementById('tela-lista-detalhe').classList.remove('oculto');
+      if (param) await carregarDetalheLista(param);
+      break;
+    case 'estatisticas':
+      document.getElementById('tela-estatisticas').classList.remove('oculto');
+      await carregarEstatisticas();
+      break;
+    case 'sobre':
+      document.getElementById('tela-sobre').classList.remove('oculto');
+      break;
+    default:
+      document.getElementById('tela-busca').classList.remove('oculto');
+  }
+}
+
+function atualizarNavAtivo(rota) {
+  const rotaNav = rota === 'detalhe' ? 'colecao' : rota.startsWith('lista') ? 'listas' : rota;
+  document.querySelectorAll('.nav-link, .bottom-nav-item').forEach(el => {
+    el.classList.toggle('ativo', el.dataset.rota === rotaNav);
+  });
+}
+
+// ── BUSCA com sugestões ────────────────────────────────────
+
+const MAX_RECENTES = 6;
+const CHAVE_RECENTES = 'torre_buscas_recentes';
+
+function getRecentes() {
+  try { return JSON.parse(localStorage.getItem(CHAVE_RECENTES) || '[]'); }
+  catch (_) { return []; }
+}
+
+function salvarRecente(termo) {
+  if (!termo || termo.length < 2) return;
+  let recentes = getRecentes().filter(r => r.toLowerCase() !== termo.toLowerCase());
+  recentes.unshift(termo);
+  recentes = recentes.slice(0, MAX_RECENTES);
+  localStorage.setItem(CHAVE_RECENTES, JSON.stringify(recentes));
+}
+
+function removerRecente(termo) {
+  const recentes = getRecentes().filter(r => r.toLowerCase() !== termo.toLowerCase());
+  localStorage.setItem(CHAVE_RECENTES, JSON.stringify(recentes));
+}
+
+// Gera sugestões a partir da coleção do usuário
+function gerarSugestoesDaColecao(query) {
+  if (!query || query.length < 2) return [];
+  const q = query.toLowerCase();
+
+  const candidatos = new Map(); // texto → metadado
+  Estado.colecao.forEach(g => {
+    if (g.titulo?.toLowerCase().includes(q))
+      candidatos.set(g.titulo, { sub: g.editora || '', tipo: 'titulo' });
+
+    if (g.editora?.toLowerCase().includes(q))
+      candidatos.set(g.editora, { sub: 'editora', tipo: 'editora' });
+
+    // Personagens separados por vírgula
+    (g.personagens || '').split(',').map(p => p.trim()).filter(Boolean).forEach(p => {
+      if (p.toLowerCase().includes(q))
+        candidatos.set(p, { sub: 'personagem', tipo: 'personagem' });
+    });
+  });
+
+  return [...candidatos.entries()]
+    .slice(0, 6)
+    .map(([texto, meta]) => ({ texto, ...meta }));
+}
+
+// Destaca o trecho que coincide com a query
+function destacarCoincidia(texto, query) {
+  const idx = texto.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return escHtml(texto);
+  return escHtml(texto.slice(0, idx))
+    + `<mark>${escHtml(texto.slice(idx, idx + query.length))}</mark>`
+    + escHtml(texto.slice(idx + query.length));
+}
+
+let _indiceSelecionado = -1;
+
+function renderizarDropdown(query) {
+  const dropdown = document.getElementById('dropdown-sugestoes');
+  const elRecentes = document.getElementById('sugestoes-recentes');
+  const elColecao  = document.getElementById('sugestoes-colecao');
+  _indiceSelecionado = -1;
+
+  const recentes   = getRecentes().filter(r => !query || r.toLowerCase().includes(query.toLowerCase()));
+  const sugestoesCol = query ? gerarSugestoesDaColecao(query) : [];
+
+  // Renderiza recentes
+  if (recentes.length) {
+    elRecentes.innerHTML = `<div class="sugestoes-titulo">Buscas recentes</div>`
+      + recentes.map(r => `
+        <div class="sugestao-item" data-termo="${escHtml(r)}" role="option">
+          <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+          <span>${query ? destacarCoincidia(r, query) : escHtml(r)}</span>
+          <button class="btn-remover-recente" data-termo="${escHtml(r)}" title="Remover" aria-label="Remover sugestão">×</button>
+        </div>`).join('');
+  } else {
+    elRecentes.innerHTML = '';
+  }
+
+  // Renderiza sugestões da coleção
+  if (sugestoesCol.length) {
+    const icones = { titulo: iconeSvg('book'), editora: iconeSvg('tag'), personagem: iconeSvg('user') };
+    elColecao.innerHTML = `<div class="sugestoes-titulo">Na sua coleção</div>`
+      + sugestoesCol.map(s => `
+        <div class="sugestao-item" data-termo="${escHtml(s.texto)}" role="option">
+          ${icones[s.tipo] || ''}
+          <span>${destacarCoincidia(s.texto, query)}</span>
+          <span class="sugestao-subtexto">${escHtml(s.sub)}</span>
+        </div>`).join('');
+  } else {
+    elColecao.innerHTML = '';
+  }
+
+  const temConteudo = recentes.length > 0 || sugestoesCol.length > 0;
+  dropdown.classList.toggle('oculto', !temConteudo);
+}
+
+function fecharDropdown() {
+  document.getElementById('dropdown-sugestoes').classList.add('oculto');
+  _indiceSelecionado = -1;
+}
+
+function iconeSvg(tipo) {
+  const paths = {
+    book:  '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    tag:   '<svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+    user:  '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  };
+  return paths[tipo] || '';
+}
+
+function navegarDropdown(direcao) {
+  const itens = [...document.querySelectorAll('#dropdown-sugestoes .sugestao-item')];
+  if (!itens.length) return;
+
+  itens.forEach(el => el.classList.remove('selecionado'));
+  _indiceSelecionado = Math.max(-1, Math.min(itens.length - 1, _indiceSelecionado + direcao));
+
+  if (_indiceSelecionado >= 0) {
+    itens[_indiceSelecionado].classList.add('selecionado');
+    document.getElementById('input-busca').value = itens[_indiceSelecionado].dataset.termo;
+  }
+}
+
+function configurarBusca() {
+  const input    = document.getElementById('input-busca');
+  const btnBuscar = document.getElementById('btn-buscar');
+  const btnLimpar = document.getElementById('btn-limpar-busca');
+  let   debounce  = null;
+
+  const executarBusca = (termo) => {
+    const t = (termo || input.value).trim();
+    if (t.length >= 2) {
+      fecharDropdown();
+      salvarRecente(t);
+      realizarBusca(t);
+    }
+  };
+
+  btnBuscar.addEventListener('click', () => executarBusca());
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    btnLimpar.classList.toggle('oculto', q.length === 0);
+
+    clearTimeout(debounce);
+    debounce = setTimeout(() => renderizarDropdown(q), 120);
+  });
+
+  input.addEventListener('focus', () => {
+    renderizarDropdown(input.value.trim());
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); navegarDropdown(1);  return; }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); navegarDropdown(-1); return; }
+    if (e.key === 'Escape')    { fecharDropdown(); return; }
+    if (e.key === 'Enter')     { e.preventDefault(); executarBusca(); }
+  });
+
+  btnLimpar.addEventListener('click', () => {
+    input.value = '';
+    btnLimpar.classList.add('oculto');
+    fecharDropdown();
+    input.focus();
+  });
+
+  // Clique em sugestão
+  document.getElementById('dropdown-sugestoes').addEventListener('click', e => {
+    // Remover recente
+    const btnRemover = e.target.closest('.btn-remover-recente');
+    if (btnRemover) {
+      e.stopPropagation();
+      removerRecente(btnRemover.dataset.termo);
+      renderizarDropdown(input.value.trim());
+      return;
+    }
+
+    const item = e.target.closest('.sugestao-item');
+    if (item) {
+      input.value = item.dataset.termo;
+      btnLimpar.classList.remove('oculto');
+      executarBusca(item.dataset.termo);
+    }
+  });
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.campo-busca-wrapper')) fecharDropdown();
+  });
+}
+
+async function realizarBusca(termo) {
+  const container = document.getElementById('resultados-busca');
+  const statusEl  = document.getElementById('busca-status');
+
+  renderSkeletons(container, 10);
+  statusEl.className   = 'busca-status';
+  statusEl.classList.remove('oculto');
+  statusEl.textContent = `Buscando "${termo}" no Guia dos Quadrinhos…`;
+
+  try {
+    const resultados = await buscarGibis(termo);
+    Estado.resultadosBusca = resultados;
+
+    const colecao = await apiGetColecao();
+    Estado.colecao = colecao;
+
+    if (resultados.length === 0) {
+      container.innerHTML = `
+        <div class="busca-vazia">
+          <div class="busca-vazia-icone">😕</div>
+          <p>Nenhum resultado para "<strong>${escHtml(termo)}</strong>"</p>
+          <p class="texto-sec mt-8">Tente outros termos ou
+            <button class="btn btn-secundario btn-sm" id="btn-cadastro-manual">cadastre manualmente</button>
+          </p>
+        </div>`;
+      document.getElementById('btn-cadastro-manual')?.addEventListener('click', abrirCadastroManual);
+      statusEl.classList.add('oculto');
+      return;
+    }
+
+    statusEl.textContent = `${resultados.length} resultado${resultados.length !== 1 ? 's' : ''} encontrado${resultados.length !== 1 ? 's' : ''}`;
+
+    const mapa = new Map(colecao.map(g => [String(g.id_guia), g]));
+
+    container.innerHTML = resultados.map(gibi => {
+      const entry = mapa.get(String(gibi.id_guia));
+      return renderCardGibi(gibi, { naColecao: !!entry, statusColecao: entry?.status || '', mostrarBtnAdd: true });
+    }).join('');
+
+    configurarEventosGrid(container, 'busca');
+
+  } catch (err) {
+    statusEl.className   = 'busca-status erro';
+    statusEl.textContent = `Erro: ${err.message}`;
+
+    container.innerHTML = `
+      <div class="busca-vazia">
+        <div class="busca-vazia-icone">⚠️</div>
+        <p>Não foi possível buscar no Guia dos Quadrinhos.</p>
+        <p class="texto-sec mt-8">
+          <button class="btn btn-secundario btn-sm" id="btn-cadastro-manual-err">Cadastrar manualmente</button>
+        </p>
+      </div>`;
+    document.getElementById('btn-cadastro-manual-err')?.addEventListener('click', abrirCadastroManual);
+  }
+}
+
+// ── COLEÇÃO ────────────────────────────────────────────────
+
+function configurarFiltrosColecao() {
+  document.querySelectorAll('.filtro-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
+      btn.classList.add('ativo');
+      Estado.filtroColecao = btn.dataset.status;
+      renderizarColecao();
+    });
+  });
+
+  document.getElementById('busca-colecao')?.addEventListener('input', e => {
+    Estado.buscaColecao = e.target.value.toLowerCase();
+    renderizarColecao();
+  });
+
+  document.getElementById('ordenacao-colecao')?.addEventListener('change', e => {
+    Estado.ordenacaoColecao = e.target.value;
+    renderizarColecao();
+  });
+}
+
+async function carregarColecao() {
+  const container = document.getElementById('grid-colecao');
+  renderSkeletons(container, 12);
+  try {
+    Estado.colecao = await apiGetColecao(true);
+    renderizarColecao();
+  } catch (err) {
+    container.innerHTML = `<div class="colecao-vazia"><p>Erro ao carregar coleção: ${escHtml(err.message)}</p></div>`;
+  }
+}
+
+function renderizarColecao() {
+  const container = document.getElementById('grid-colecao');
+  let gibis = [...Estado.colecao];
+
+  if (Estado.filtroColecao !== 'todos') {
+    if (Estado.filtroColecao === 'fisico') {
+      gibis = gibis.filter(g => g.fisico === 'TRUE' || g.fisico === true);
+    } else {
+      gibis = gibis.filter(g => g.status === Estado.filtroColecao);
+    }
+  }
+
+  if (Estado.buscaColecao) {
+    const q = Estado.buscaColecao;
+    gibis = gibis.filter(g =>
+      g.titulo?.toLowerCase().includes(q)     ||
+      g.editora?.toLowerCase().includes(q)    ||
+      g.artistas?.toLowerCase().includes(q)   ||
+      g.personagens?.toLowerCase().includes(q)
+    );
+  }
+
+  gibis.sort((a, b) => {
+    switch (Estado.ordenacaoColecao) {
+      case 'titulo':  return (a.titulo  || '').localeCompare(b.titulo  || '', 'pt-BR');
+      case 'nota':    return Number(b.nota || 0)  - Number(a.nota || 0);
+      case 'editora': return (a.editora || '').localeCompare(b.editora || '', 'pt-BR');
+      case 'ano':     return Number(b.ano || 0)   - Number(a.ano || 0);
+      default:        return new Date(b.data_adicao || 0) - new Date(a.data_adicao || 0);
+    }
+  });
+
+  if (gibis.length === 0) {
+    container.innerHTML = `
+      <div class="colecao-vazia">
+        <div class="colecao-vazia-icone">${Estado.filtroColecao !== 'todos' ? '🔍' : '📭'}</div>
+        <p>${Estado.filtroColecao !== 'todos' ? 'Nenhum gibi neste filtro.' : 'Sua coleção está vazia.<br>Busque gibis e adicione-os!'}</p>
+        ${Estado.filtroColecao === 'todos' ? '<a href="#busca" class="btn btn-primario">Buscar gibis</a>' : ''}
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = gibis.map(g =>
+    renderCardGibi(g, { naColecao: true, statusColecao: g.status, mostrarBtnAdd: false })
+  ).join('');
+
+  configurarEventosGrid(container, 'colecao');
+}
+
+// ── DETALHE DO GIBI ────────────────────────────────────────
+
+async function carregarDetalhe(idGuia) {
+  const container = document.getElementById('conteudo-detalhe');
+  container.innerHTML = '<div class="spinner" style="margin:40px auto;display:block"></div>';
+
+  try {
+    let gibi = Estado.colecao.find(g => String(g.id_guia) === String(idGuia))
+            || Estado.resultadosBusca.find(g => String(g.id_guia) === String(idGuia));
+
+    if (!gibi) {
+      const cached = await apiGetCacheGuia(idGuia);
+      gibi = cached || { id_guia: idGuia, titulo: 'Gibi não encontrado' };
+    }
+
+    Estado.gibiDetalhe = gibi;
+    const entry = await apiGibiNaColecao(idGuia);
+    container.innerHTML = renderDetalhe(gibi, entry);
+    configurarEventosDetalhe(gibi, entry);
+
+  } catch (err) {
+    container.innerHTML = `<p class="texto-sec">Erro ao carregar: ${escHtml(err.message)}</p>`;
+  }
+}
+
+function configurarEventosDetalhe(gibi, entryInicial) {
+  document.querySelectorAll('#tela-detalhe .status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#tela-detalhe .status-btn').forEach(b => b.classList.remove('ativo'));
+      btn.classList.add('ativo');
+    });
+  });
+
+  configurarEstrelas('detalhe-estrelas', Number(entryInicial?.nota || 0));
+
+  document.getElementById('btn-salvar-detalhe')?.addEventListener('click', async () => {
+    await salvarAlteracoesDetalhe(gibi);
+  });
+
+  document.getElementById('btn-add-detalhe')?.addEventListener('click', () => {
+    abrirModalAdicionar(gibi);
+  });
+
+  document.getElementById('btn-remover-colecao')?.addEventListener('click', () => {
+    abrirConfirmacao(
+      'Remover da coleção',
+      `Deseja remover "${gibi.titulo}" da coleção? Esta ação não pode ser desfeita.`,
+      async () => {
+        try {
+          await apiRemoverGibi(gibi.id_guia);
+          mostrarToast('Gibi removido da coleção', 'info');
+          history.back();
+        } catch (err) {
+          mostrarToast(`Erro: ${err.message}`, 'erro');
+        }
+      }
+    );
+  });
+
+  document.getElementById('btn-adicionar-lista-detalhe')?.addEventListener('click', async () => {
+    await abrirModalAdicionarLista(gibi.id_guia);
+  });
+}
+
+async function salvarAlteracoesDetalhe(gibi) {
+  const statusBtn = document.querySelector('#tela-detalhe .status-btn.ativo');
+  const status    = statusBtn?.dataset.status || '';
+  const fisico    = document.getElementById('detalhe-fisico')?.checked || false;
+  const nota      = Number(document.getElementById('detalhe-estrelas')?.dataset.nota || 0);
+  const notas     = document.getElementById('detalhe-notas')?.value || '';
+  const agora     = new Date().toISOString();
+
+  const dados = {
+    id_guia: gibi.id_guia, status, fisico, nota, notas_pessoais: notas,
+    data_leitura: status === 'lido' ? agora : '',
+    titulo: gibi.titulo, numero: gibi.numero, editora: gibi.editora,
+    ano: gibi.ano, capa_url: gibi.capa_url, artistas: gibi.artistas,
+    url_original: gibi.url_original,
+  };
+
+  try {
+    const naColecao = await apiGibiNaColecao(gibi.id_guia);
+    if (naColecao) {
+      await apiAtualizarGibi(dados);
+    } else {
+      await apiAdicionarGibi({ ...dados, data_adicao: agora });
+    }
+    mostrarToast('Alterações salvas!', 'sucesso');
+  } catch (err) {
+    mostrarToast(`Erro ao salvar: ${err.message}`, 'erro');
+  }
+}
+
+// ── MODAL DE ADICIONAR ─────────────────────────────────────
+
+function configurarModais() {
+  configurarEstrelas('modal-estrelas', 0);
+}
+
+function abrirModalAdicionar(gibi) {
+  Estado._gibiParaAdicionar = gibi;
+
+  document.getElementById('modal-adicionar-capa').innerHTML = `
+    <div class="modal-capa-preview">
+      ${gibi.capa_url ? `<img src="${escHtml(gibi.capa_url)}" alt="Capa" />` : ''}
+      <div class="modal-capa-preview-info">
+        <h3>${escHtml(gibi.titulo)}</h3>
+        <p>${escHtml(gibi.editora || '')} ${gibi.numero ? '#' + escHtml(String(gibi.numero)) : ''}</p>
+      </div>
+    </div>`;
+
+  document.querySelectorAll('#modal-adicionar .status-btn').forEach(b => {
+    b.classList.toggle('ativo', b.dataset.status === 'lido');
+  });
+  document.getElementById('modal-fisico').checked = false;
+  document.getElementById('modal-notas').value    = '';
+
+  const estrelasEl = document.getElementById('modal-estrelas');
+  estrelasEl.dataset.nota = '0';
+  estrelasEl.innerHTML    = renderEstrelas(0);
+  configurarEstrelas('modal-estrelas', 0);
+
+  document.querySelectorAll('#modal-adicionar .status-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#modal-adicionar .status-btn').forEach(b => b.classList.remove('ativo'));
+      btn.classList.add('ativo');
+    });
+  });
+
+  abrirModal('modal-adicionar');
+}
+
+document.getElementById('btn-confirmar-adicionar')?.addEventListener('click', async () => {
+  const gibi = Estado._gibiParaAdicionar;
+  if (!gibi) return;
+
+  const statusBtn = document.querySelector('#modal-adicionar .status-btn.ativo');
+  const status    = statusBtn?.dataset.status || 'quero_ler';
+  const fisico    = document.getElementById('modal-fisico')?.checked || false;
+  const nota      = Number(document.getElementById('modal-estrelas')?.dataset.nota || 0);
+  const notas     = document.getElementById('modal-notas')?.value || '';
+  const agora     = new Date().toISOString();
+
+  try {
+    await apiAdicionarGibi({ ...gibi, status, fisico, nota, notas_pessoais: notas, data_adicao: agora, data_leitura: status === 'lido' ? agora : '' });
+    await cachearGibi(gibi);
+
+    fecharModal('modal-adicionar');
+    mostrarToast(`"${gibi.titulo}" adicionado à coleção!`, 'sucesso');
+
+    const card = document.querySelector(`.card-gibi[data-id="${CSS.escape(String(gibi.id_guia))}"]`);
+    if (card) {
+      const badge = card.querySelector('.badge-status') || document.createElement('span');
+      badge.className   = `badge-status badge-${status}`;
+      badge.textContent = labelStatus(status);
+      card.prepend(badge);
+      const btnAdd = card.querySelector('.card-btn-add');
+      if (btnAdd) { btnAdd.textContent = '✓'; btnAdd.classList.add('ja-na-colecao'); }
+    }
+  } catch (err) {
+    if (err.message?.includes('já existe')) {
+      mostrarToast('Este gibi já está na coleção!', 'info');
+      fecharModal('modal-adicionar');
+    } else {
+      mostrarToast(`Erro: ${err.message}`, 'erro');
+    }
+  }
+});
+
+// ── CADASTRO MANUAL ────────────────────────────────────────
+
+function abrirCadastroManual() {
+  const dados = {
+    titulo:   prompt('Título do gibi:') || '',
+    numero:   prompt('Número da edição:') || '',
+    editora:  prompt('Editora:') || '',
+    ano:      prompt('Ano:') || '',
+    capa_url: prompt('URL da capa (opcional):') || '',
+  };
+  if (!dados.titulo) return;
+  abrirModalAdicionar(criarGibiManual(dados));
+}
+
+// ── ADICIONAR A LISTA ──────────────────────────────────────
+
+async function abrirModalAdicionarLista(idGuia) {
+  try {
+    const listas = await apiGetListas();
+    if (listas.length === 0) { mostrarToast('Crie uma lista primeiro!', 'info'); return; }
+
+    const opcoes = listas.map((l, i) => `${i + 1}. ${l.nome}`).join('\n');
+    const idx    = prompt(`Adicionar a qual lista?\n\n${opcoes}\n\nDigite o número:`);
+    if (!idx) return;
+
+    const lista = listas[Number(idx) - 1];
+    if (!lista) { mostrarToast('Lista inválida', 'erro'); return; }
+
+    await apiAdicionarItemLista(lista.id_lista, idGuia);
+    mostrarToast(`Adicionado à lista "${lista.nome}"!`, 'sucesso');
+  } catch (err) {
+    mostrarToast(`Erro: ${err.message}`, 'erro');
+  }
+}
+
+// ── LISTAS ─────────────────────────────────────────────────
+
+async function carregarListas() {
+  const container = document.getElementById('grid-listas');
+  container.innerHTML = '<div class="spinner" style="margin:60px auto;display:block"></div>';
+  try {
+    Estado.listas = await apiGetListas(true);
+
+    if (Estado.listas.length === 0) {
+      container.innerHTML = `
+        <div class="listas-vazia">
+          <div class="listas-vazia-icone">📋</div>
+          <p>Nenhuma lista criada ainda.<br>Organize seus gibis em listas temáticas!</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = Estado.listas.map(renderCardLista).join('');
+    configurarEventosListas();
+  } catch (err) {
+    container.innerHTML = `<div class="listas-vazia"><p>Erro: ${escHtml(err.message)}</p></div>`;
+  }
+}
+
+function configurarEventosListas() {
+  document.querySelectorAll('.card-lista').forEach(card => {
+    card.addEventListener('click', async e => {
+      const acao = e.target.closest('[data-acao]');
+      if (acao) {
+        e.stopPropagation();
+        if (acao.dataset.acao === 'editar')  { editarLista(acao.dataset.id); return; }
+        if (acao.dataset.acao === 'excluir') { excluirLista(acao.dataset.id); return; }
+      }
+      const id = card.dataset.id;
+      Estado.listaDetalhe = Estado.listas.find(l => l.id_lista === id);
+      location.hash = `lista-detalhe/${id}`;
+    });
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') card.click(); });
+  });
+}
+
+async function carregarDetalheLista(idLista) {
+  const container = document.getElementById('conteudo-lista-detalhe');
+  container.innerHTML = '<div class="spinner" style="margin:60px auto;display:block"></div>';
+  try {
+    const lista = Estado.listaDetalhe || Estado.listas.find(l => l.id_lista === idLista);
+    const itens = await apiGetItensLista(idLista);
+
+    container.innerHTML = `
+      <header class="tela-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:28px">${lista?.icone || '📚'}</span>
+          <h1>${escHtml(lista?.nome || 'Lista')}</h1>
+        </div>
+        <span class="texto-sec">${itens.length} gibi${itens.length !== 1 ? 's' : ''}</span>
+      </header>
+      <div class="grid-capas" id="grid-lista-itens">
+        ${itens.length === 0
+          ? `<div class="busca-vazia"><div class="busca-vazia-icone">📭</div><p>Esta lista está vazia.</p></div>`
+          : itens.map(item => item.gibi ? renderCardGibi(item.gibi, { naColecao: true, statusColecao: item.gibi.status, mostrarBtnAdd: false }) : '').join('')
+        }
+      </div>`;
+
+    if (itens.length > 0) configurarEventosGrid(document.getElementById('grid-lista-itens'), 'colecao');
+  } catch (err) {
+    container.innerHTML = `<p class="texto-sec">Erro: ${escHtml(err.message)}</p>`;
+  }
+}
+
+// ── Modal nova/editar lista ────────────────────────────────
+
+let _listaEditandoId = null;
+
+document.getElementById('btn-nova-lista')?.addEventListener('click', () => {
+  _listaEditandoId = null;
+  document.getElementById('modal-lista-titulo').textContent = 'Nova Lista';
+  document.getElementById('lista-nome').value      = '';
+  document.getElementById('lista-descricao').value = '';
+  document.querySelectorAll('.icone-btn').forEach((b, i) => b.classList.toggle('ativo', i === 0));
+  document.querySelectorAll('.cor-btn').forEach((b, i) => b.classList.toggle('ativo', i === 0));
+  abrirModal('modal-lista');
+});
+
+function editarLista(id) {
+  const lista = Estado.listas.find(l => l.id_lista === id);
+  if (!lista) return;
+  _listaEditandoId = id;
+  document.getElementById('modal-lista-titulo').textContent = 'Editar Lista';
+  document.getElementById('lista-nome').value      = lista.nome;
+  document.getElementById('lista-descricao').value = lista.descricao || '';
+  document.querySelectorAll('.icone-btn').forEach(b => b.classList.toggle('ativo', b.dataset.icone === lista.icone));
+  document.querySelectorAll('.cor-btn').forEach(b => b.classList.toggle('ativo', b.dataset.cor === lista.cor));
+  abrirModal('modal-lista');
+}
+
+function excluirLista(id) {
+  const lista = Estado.listas.find(l => l.id_lista === id);
+  abrirConfirmacao(
+    'Excluir lista',
+    `Deseja excluir a lista "${lista?.nome}"? Os gibis não serão removidos da coleção.`,
+    async () => {
+      try {
+        await apiRemoverLista(id);
+        mostrarToast('Lista excluída', 'info');
+        await carregarListas();
+      } catch (err) {
+        mostrarToast(`Erro: ${err.message}`, 'erro');
+      }
+    }
+  );
+}
+
+document.querySelectorAll('.icone-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.icone-btn').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+  });
+});
+
+document.querySelectorAll('.cor-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cor-btn').forEach(b => b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+  });
+});
+
+document.getElementById('btn-salvar-lista')?.addEventListener('click', async () => {
+  const nome = document.getElementById('lista-nome').value.trim();
+  if (!nome) { mostrarToast('Digite um nome para a lista', 'erro'); return; }
+
+  const icone = document.querySelector('.icone-btn.ativo')?.dataset.icone || '📚';
+  const cor   = document.querySelector('.cor-btn.ativo')?.dataset.cor   || '#C0392B';
+  const dados = { nome, descricao: document.getElementById('lista-descricao').value.trim(), icone, cor };
+
+  try {
+    if (_listaEditandoId) {
+      await apiAtualizarLista({ id_lista: _listaEditandoId, ...dados });
+      mostrarToast('Lista atualizada!', 'sucesso');
+    } else {
+      await apiCriarLista(dados);
+      mostrarToast('Lista criada!', 'sucesso');
+    }
+    fecharModal('modal-lista');
+    await carregarListas();
+  } catch (err) {
+    mostrarToast(`Erro: ${err.message}`, 'erro');
+  }
+});
+
+// ── ESTATÍSTICAS ───────────────────────────────────────────
+
+async function carregarEstatisticas() {
+  const container = document.getElementById('conteudo-stats');
+  container.innerHTML = '<div class="spinner" style="margin:60px auto;display:block"></div>';
+  try {
+    const stats = await apiGetStats();
+    container.innerHTML = renderStats(stats);
+  } catch (err) {
+    container.innerHTML = `<p class="texto-sec">Erro: ${escHtml(err.message)}</p>`;
+  }
+}
+
+// ── EVENTOS DO GRID ────────────────────────────────────────
+
+function configurarEventosGrid(container, contexto) {
+  container.addEventListener('click', async e => {
+    const card = e.target.closest('.card-gibi');
+    if (!card) return;
+    const id = card.dataset.id;
+
+    if (e.target.closest('.card-btn-add')) {
+      e.stopPropagation();
+      const btn = e.target.closest('.card-btn-add');
+      if (btn.classList.contains('ja-na-colecao')) { location.hash = `detalhe/${id}`; return; }
+      const gibi = Estado.resultadosBusca.find(g => String(g.id_guia) === String(id))
+                || Estado.colecao.find(g => String(g.id_guia) === String(id));
+      if (gibi) abrirModalAdicionar(gibi);
+      return;
+    }
+
+    location.hash = `detalhe/${id}`;
+  });
+
+  container.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const card = e.target.closest('.card-gibi');
+      if (card) { e.preventDefault(); card.click(); }
+    }
+  });
+}
+
+// ── ESTRELAS ───────────────────────────────────────────────
+
+function configurarEstrelas(containerId, notaInicial = 0) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.dataset.nota = notaInicial;
+  container.innerHTML    = renderEstrelas(notaInicial);
+
+  container.addEventListener('click', e => {
+    const estrela = e.target.closest('.estrela');
+    if (!estrela) return;
+    const nota = Number(estrela.dataset.valor);
+    container.dataset.nota = nota;
+    container.innerHTML    = renderEstrelas(nota);
+    configurarEstrelas(containerId, nota);
+  });
+
+  container.addEventListener('mouseover', e => {
+    const estrela = e.target.closest('.estrela');
+    if (!estrela) return;
+    const val = Number(estrela.dataset.valor);
+    container.querySelectorAll('.estrela').forEach((s, i) => {
+      s.textContent = i < val / 2 ? '★' : '☆';
+      s.classList.toggle('cheia', i < val / 2);
+      s.classList.toggle('vazia', i >= val / 2);
+    });
+  });
+
+  container.addEventListener('mouseleave', () => {
+    container.innerHTML = renderEstrelas(Number(container.dataset.nota));
+    configurarEstrelas(containerId, Number(container.dataset.nota));
+  });
+}
+
+// ── EXPORTAR (atalho Ctrl+E) ───────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'e') {
+    e.preventDefault();
+    exportarColecaoJSON();
+    mostrarToast('Coleção exportada!', 'sucesso');
+  }
+});

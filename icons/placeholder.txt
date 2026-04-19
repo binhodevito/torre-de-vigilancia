@@ -1,0 +1,6 @@
+Coloque aqui os arquivos:
+  icon-192.png  (192x192 px)
+  icon-512.png  (512x512 px)
+
+Sugestão: use o emoji 📚 em fundo #0f0e17 (laranja #ff6b35)
+ou gere em https://favicon.io/emoji-favicons/books/

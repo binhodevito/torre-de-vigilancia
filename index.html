@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#F2EDE3" />
+  <meta name="description" content="Controle de leitura e coleção de gibis brasileiros" />
+  <title>Torre de Vigilância</title>
+
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ── Navbar desktop (lateral) ───────────────────────── -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-bloco">
+        <span class="logo-texto">Torre de<br>Vigilância</span>
+      </div>
+    </div>
+
+    <ul class="sidebar-nav">
+      <li><a href="#busca"        class="nav-link" data-rota="busca">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Buscar
+      </a></li>
+      <li><a href="#colecao"      class="nav-link" data-rota="colecao">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Coleção
+      </a></li>
+      <li><a href="#listas"       class="nav-link" data-rota="listas">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Listas
+      </a></li>
+      <li><a href="#estatisticas" class="nav-link" data-rota="estatisticas">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Estatísticas
+      </a></li>
+    </ul>
+
+    <div class="sidebar-rodape">
+      <a href="#sobre" class="nav-link nav-link-manifesto" data-rota="sobre">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Sobre
+      </a>
+      <button class="nav-link nav-link-manifesto" id="btn-logout" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;font-size:inherit;">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Tela de autenticação (cobre tudo antes do login) ── -->
+  <div id="tela-auth" class="auth-overlay">
+    <div class="auth-marca">
+      <div class="auth-marca-topo">
+        <span class="logo-texto auth-logo-texto">Torre de<br>Vigilância</span>
+        <p class="auth-tagline">Sua coleção de gibis, do seu jeito.</p>
+      </div>
+
+      <div class="auth-features">
+        <div class="auth-feature">
+          <span class="auth-feature-icone">📖</span>
+          <div>
+            <strong>Controle sua leitura</strong>
+            <p>Registre o que leu, está lendo e quer ler. Dê notas e escreva suas impressões.</p>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <span class="auth-feature-icone">🗂️</span>
+          <div>
+            <strong>Organize sua coleção</strong>
+            <p>Separe a coleção física do histórico de leitura. Crie listas temáticas.</p>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <span class="auth-feature-icone">📊</span>
+          <div>
+            <strong>Conheça seus hábitos</strong>
+            <p>Estatísticas da sua coleção por editora, ano e avaliação.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-marca-rodape">
+        <p>Ferramenta gratuita, sem anúncios,<br>feita para a comunidade de quadrinhos brasileiros.</p>
+      </div>
+    </div>
+
+    <div class="auth-painel">
+      <!-- Login -->
+      <div id="form-login">
+        <h2 class="auth-titulo">Entrar</h2>
+        <div class="campo-grupo">
+          <label for="login-email">E-mail</label>
+          <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+        <div class="campo-grupo">
+          <label for="login-senha">Senha</label>
+          <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <p class="auth-erro" id="login-erro"></p>
+        <button class="btn btn-primario auth-btn" id="btn-login">Entrar</button>
+        <div class="auth-links">
+          <button class="auth-link" id="btn-ir-esqueci">Esqueci minha senha →</button>
+          <button class="auth-link" id="btn-ir-magic">Entrar sem senha →</button>
+          <button class="auth-link" id="btn-ir-cadastro">Criar conta →</button>
+        </div>
+      </div>
+
+      <!-- Esqueci a senha -->
+      <div id="form-esqueci" class="oculto">
+        <h2 class="auth-titulo">Redefinir senha</h2>
+        <p class="auth-descricao">Enviaremos um link para você criar uma nova senha.</p>
+        <div class="campo-grupo">
+          <label for="esqueci-email">E-mail</label>
+          <input type="email" id="esqueci-email" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+        <p class="auth-erro" id="esqueci-erro"></p>
+        <button class="btn btn-primario auth-btn" id="btn-esqueci">Enviar link</button>
+        <div class="auth-links">
+          <button class="auth-link" id="btn-voltar-esqueci">← Voltar</button>
+        </div>
+      </div>
+
+      <!-- Cadastro -->
+      <div id="form-cadastro" class="oculto">
+        <h2 class="auth-titulo">Criar conta</h2>
+        <div class="campo-grupo">
+          <label for="cadastro-email">E-mail</label>
+          <input type="email" id="cadastro-email" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+        <div class="campo-grupo">
+          <label for="cadastro-senha">Senha <span style="font-weight:400;text-transform:none">(mín. 6 caracteres)</span></label>
+          <input type="password" id="cadastro-senha" placeholder="••••••••" autocomplete="new-password" />
+        </div>
+        <p class="auth-erro" id="cadastro-erro"></p>
+        <button class="btn btn-primario auth-btn" id="btn-cadastro">Criar conta</button>
+        <div class="auth-links">
+          <button class="auth-link" id="btn-ir-login">Já tenho conta →</button>
+        </div>
+      </div>
+
+      <!-- Magic link -->
+      <div id="form-magic" class="oculto">
+        <h2 class="auth-titulo">Entrar sem senha</h2>
+        <p class="auth-descricao">Enviaremos um link de acesso para seu e-mail.</p>
+        <div class="campo-grupo">
+          <label for="magic-email">E-mail</label>
+          <input type="email" id="magic-email" placeholder="seu@email.com" autocomplete="email" />
+        </div>
+        <p class="auth-erro" id="magic-erro"></p>
+        <button class="btn btn-primario auth-btn" id="btn-magic">Enviar link</button>
+        <div class="auth-links">
+          <button class="auth-link" id="btn-voltar-login">← Voltar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Wrapper do app (oculto até autenticar) ─────────── -->
+  <div id="app-wrapper" class="oculto" style="display:contents">
+
+  <!-- ── Conteúdo principal ─────────────────────────────── -->
+  <main class="main-content" id="main-content">
+
+    <!-- Tela: Busca -->
+    <section class="tela" id="tela-busca">
+      <header class="tela-header">
+        <div>
+          <h1>Buscar Gibis</h1>
+          <p class="subtitulo">Busca no <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a></p>
+        </div>
+      </header>
+
+      <div class="busca-form">
+        <div class="campo-busca-wrapper">
+          <div class="campo-busca">
+            <svg class="icone-busca" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input
+              type="text"
+              id="input-busca"
+              placeholder="Título, personagem, editora..."
+              autocomplete="off"
+              aria-label="Buscar gibis"
+              aria-autocomplete="list"
+              aria-controls="dropdown-sugestoes"
+            />
+            <button class="btn-limpar-busca oculto" id="btn-limpar-busca" title="Limpar">×</button>
+            <button class="btn-buscar" id="btn-buscar">Buscar</button>
+          </div>
+          <!-- Dropdown de sugestões -->
+          <div class="dropdown-sugestoes oculto" id="dropdown-sugestoes" role="listbox">
+            <div class="sugestoes-grupo" id="sugestoes-recentes"></div>
+            <div class="sugestoes-grupo" id="sugestoes-colecao"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="busca-status" class="busca-status oculto"></div>
+
+      <div class="grid-capas" id="resultados-busca">
+        <div class="busca-vazia">
+          <div class="busca-vazia-icone">🔍</div>
+          <p>Digite um título ou personagem para buscar no Guia dos Quadrinhos</p>
+        </div>
+      </div>
+
+      <p class="credito-guia">
+        Resultados fornecidos pelo <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a> —
+        a referência de quadrinhos brasileiros. Visite e apoie o projeto!
+      </p>
+    </section>
+
+    <!-- Tela: Coleção -->
+    <section class="tela oculto" id="tela-colecao">
+      <header class="tela-header">
+        <h1>Minha Coleção</h1>
+      </header>
+
+      <div class="filtros-colecao">
+        <div class="filtros-status">
+          <button class="filtro-btn ativo" data-status="todos">Todos</button>
+          <button class="filtro-btn" data-status="quero_ler">Quero Ler</button>
+          <button class="filtro-btn" data-status="lendo">Lendo</button>
+          <button class="filtro-btn" data-status="lido">Lido</button>
+          <button class="filtro-btn" data-status="fisico">Físico</button>
+        </div>
+        <div class="filtros-extras">
+          <input type="text" id="busca-colecao" placeholder="Filtrar coleção..." />
+          <select id="ordenacao-colecao">
+            <option value="data_adicao">Data de adição</option>
+            <option value="titulo">Título</option>
+            <option value="nota">Nota</option>
+            <option value="editora">Editora</option>
+            <option value="ano">Ano</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-capas" id="grid-colecao">
+        <div class="colecao-vazia">
+          <div class="colecao-vazia-icone">📭</div>
+          <p>Sua coleção está vazia.<br>Busque gibis e adicione-os!</p>
+          <a href="#busca" class="btn btn-primario">Buscar gibis</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tela: Detalhe do gibi -->
+    <section class="tela oculto" id="tela-detalhe">
+      <button class="btn-voltar" id="btn-voltar">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar
+      </button>
+      <div id="conteudo-detalhe"></div>
+    </section>
+
+    <!-- Tela: Listas -->
+    <section class="tela oculto" id="tela-listas">
+      <header class="tela-header">
+        <h1>Minhas Listas</h1>
+        <button class="btn btn-primario" id="btn-nova-lista">+ Nova Lista</button>
+      </header>
+      <div class="grid-listas" id="grid-listas">
+        <div class="listas-vazia">
+          <div class="listas-vazia-icone">📋</div>
+          <p>Nenhuma lista criada ainda.<br>Organize seus gibis em listas temáticas!</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tela: Detalhe de lista -->
+    <section class="tela oculto" id="tela-lista-detalhe">
+      <button class="btn-voltar" id="btn-voltar-lista">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Voltar para Listas
+      </button>
+      <div id="conteudo-lista-detalhe"></div>
+    </section>
+
+    <!-- Tela: Estatísticas -->
+    <section class="tela oculto" id="tela-estatisticas">
+      <header class="tela-header">
+        <h1>Estatísticas</h1>
+      </header>
+      <div id="conteudo-stats"></div>
+    </section>
+
+    <!-- Tela: Sobre (projeto + desenvolvedor) -->
+    <section class="tela oculto" id="tela-sobre">
+      <header class="tela-header">
+        <h1>Sobre</h1>
+      </header>
+
+      <!-- Âncoras de navegação interna -->
+      <nav class="sobre-nav">
+        <a href="#sobre-projeto" class="sobre-nav-link">O projeto</a>
+        <a href="#sobre-dev"     class="sobre-nav-link">O desenvolvedor</a>
+        <a href="#sobre-creditos" class="sobre-nav-link">Créditos</a>
+      </nav>
+
+      <div class="manifesto">
+
+        <!-- ── Seção: O projeto ─────────────────────────── -->
+        <div class="sobre-ancora" id="sobre-projeto"></div>
+        <div class="manifesto-bloco">
+          <h2>O que é a Torre de Vigilância</h2>
+          <p>
+            A Torre de Vigilância é uma ferramenta gratuita para organizar sua leitura
+            e coleção de gibis brasileiros. Registre o que leu, o que está lendo e o que
+            quer ler. Dê notas, escreva impressões, separe a coleção física do histórico
+            de leitura e crie listas temáticas.
+          </p>
+          <p>
+            Cada usuário tem sua própria conta — sua coleção é privada e só sua.
+          </p>
+        </div>
+
+        <div class="manifesto-bloco">
+          <h2>Filosofia do projeto</h2>
+          <ul class="manifesto-lista">
+            <li>Gratuito para sempre, sem anúncios e sem fins comerciais</li>
+            <li>Seus dados são seus — exportáveis a qualquer momento em JSON</li>
+            <li>Código aberto — qualquer um pode adaptar para uso próprio</li>
+            <li>Feito para a comunidade de quadrinhos brasileiros</li>
+          </ul>
+        </div>
+
+        <!-- ── Seção: O desenvolvedor ───────────────────── -->
+        <div class="sobre-ancora" id="sobre-dev"></div>
+        <div class="sobre-dev-card">
+          <div class="sobre-dev-foto">
+            <div class="sobre-dev-avatar">FD</div>
+          </div>
+          <div class="sobre-dev-info">
+            <h2 class="sobre-dev-nome">Fábio Devito</h2>
+            <p class="sobre-dev-cargo">Estrategista de conteúdo &amp; jornalista digital</p>
+            <a href="https://fabiodevito.com.br/" target="_blank" rel="noopener" class="sobre-dev-site">
+              fabiodevito.com.br ↗
+            </a>
+          </div>
+        </div>
+
+        <div class="manifesto-bloco">
+          <h2>Por que criei isso</h2>
+          <p>
+            Sou jornalista e estrategista de conteúdo — passo o dia pensando em como
+            organizar informação de forma que faça sentido para as pessoas. Com gibis,
+            nunca consegui fazer o mesmo pela minha própria coleção.
+          </p>
+          <p>
+            Tentei planilhas, aplicativos genéricos de leitura, listas no celular.
+            Nenhum entendia o contexto dos quadrinhos brasileiros: editoras, números de
+            edição, a diferença entre ter o físico e ter lido. O
+            <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>
+            já tem todo o catálogo — faltava uma ferramenta para conectar esse catálogo
+            ao controle pessoal de leitura.
+          </p>
+          <p>
+            A Torre de Vigilância é isso: uma ponte entre o maior acervo de quadrinhos
+            brasileiros e a sua estante particular. Feita por um leitor, para leitores.
+          </p>
+        </div>
+
+        <!-- ── Seção: Créditos ───────────────────────────── -->
+        <div class="sobre-ancora" id="sobre-creditos"></div>
+        <div class="manifesto-bloco">
+          <h2>Créditos e agradecimentos</h2>
+          <p>
+            Os dados de catálogo, capas e informações das edições utilizados nesta
+            ferramenta são fornecidos pelo
+            <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>,
+            mantido há décadas por fãs voluntários. É o maior e mais completo catálogo
+            de quadrinhos brasileiros — um patrimônio da comunidade.
+          </p>
+          <p>
+            Esta ferramenta consulta o Guia de forma respeitosa: cada edição é
+            acessada apenas uma vez, com delay entre requisições, e o resultado
+            fica em cache permanente para nunca sobrecarregar os servidores deles.
+          </p>
+          <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener" class="manifesto-btn-guia">
+            Visitar o Guia dos Quadrinhos ↗
+          </a>
+        </div>
+
+        <!-- Rodapé da página sobre -->
+        <div class="sobre-rodape">
+          <p>
+            Desenvolvido por
+            <a href="https://fabiodevito.com.br/" target="_blank" rel="noopener">Fábio Devito</a>
+          </p>
+          <p class="sobre-rodape-sub">
+            Dados de catálogo: <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── Navbar mobile (inferior) ───────────────────────── -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <a href="#busca" class="bottom-nav-item" data-rota="busca">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Buscar</span>
+    </a>
+    <a href="#colecao" class="bottom-nav-item" data-rota="colecao">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span>Coleção</span>
+    </a>
+    <a href="#listas" class="bottom-nav-item" data-rota="listas">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      <span>Listas</span>
+    </a>
+    <a href="#estatisticas" class="bottom-nav-item" data-rota="estatisticas">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>Stats</span>
+    </a>
+  </nav>
+
+  <!-- ── Modais ──────────────────────────────────────────── -->
+
+  <!-- Modal: Adicionar à coleção -->
+  <div class="modal-overlay oculto" id="modal-adicionar">
+    <div class="modal">
+      <button class="modal-fechar" data-modal="modal-adicionar">×</button>
+      <h2 class="modal-titulo">Adicionar à Coleção</h2>
+      <div id="modal-adicionar-capa"></div>
+      <div class="campo-grupo">
+        <label>Status de leitura</label>
+        <div class="status-botoes">
+          <button class="status-btn" data-status="quero_ler">📖 Quero Ler</button>
+          <button class="status-btn" data-status="lendo">📌 Lendo</button>
+          <button class="status-btn ativo" data-status="lido">✅ Lido</button>
+        </div>
+      </div>
+      <div class="campo-grupo">
+        <label class="toggle-label">
+          <input type="checkbox" id="modal-fisico" />
+          <span class="toggle-slider"></span>
+          Tenho o físico
+        </label>
+      </div>
+      <div class="campo-grupo">
+        <label>Avaliação</label>
+        <div class="estrelas" id="modal-estrelas" data-nota="0"></div>
+      </div>
+      <div class="campo-grupo">
+        <label for="modal-notas">Notas pessoais</label>
+        <textarea id="modal-notas" placeholder="Suas impressões sobre o gibi..."></textarea>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" data-modal="modal-adicionar">Cancelar</button>
+        <button class="btn btn-primario" id="btn-confirmar-adicionar">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nova lista / editar lista -->
+  <div class="modal-overlay oculto" id="modal-lista">
+    <div class="modal">
+      <button class="modal-fechar" data-modal="modal-lista">×</button>
+      <h2 class="modal-titulo" id="modal-lista-titulo">Nova Lista</h2>
+      <div class="campo-grupo">
+        <label for="lista-nome">Nome da lista *</label>
+        <input type="text" id="lista-nome" placeholder="Ex: Turma da Mônica anos 80" maxlength="60" />
+      </div>
+      <div class="campo-grupo">
+        <label for="lista-descricao">Descrição</label>
+        <input type="text" id="lista-descricao" placeholder="Descrição opcional" maxlength="120" />
+      </div>
+      <div class="campo-grupo">
+        <label>Ícone</label>
+        <div class="icones-lista">
+          <button class="icone-btn ativo" data-icone="📚">📚</button>
+          <button class="icone-btn" data-icone="⭐">⭐</button>
+          <button class="icone-btn" data-icone="❤️">❤️</button>
+          <button class="icone-btn" data-icone="🏆">🏆</button>
+          <button class="icone-btn" data-icone="🎯">🎯</button>
+          <button class="icone-btn" data-icone="🔥">🔥</button>
+          <button class="icone-btn" data-icone="💎">💎</button>
+          <button class="icone-btn" data-icone="🎭">🎭</button>
+          <button class="icone-btn" data-icone="🦸">🦸</button>
+          <button class="icone-btn" data-icone="👾">👾</button>
+        </div>
+      </div>
+      <div class="campo-grupo">
+        <label>Cor</label>
+        <div class="cores-lista">
+          <button class="cor-btn ativo" data-cor="#C0392B" style="background:#C0392B"></button>
+          <button class="cor-btn" data-cor="#2E7D32" style="background:#2E7D32"></button>
+          <button class="cor-btn" data-cor="#1565C0" style="background:#1565C0"></button>
+          <button class="cor-btn" data-cor="#6A1B9A" style="background:#6A1B9A"></button>
+          <button class="cor-btn" data-cor="#E65100" style="background:#E65100"></button>
+          <button class="cor-btn" data-cor="#00838F" style="background:#00838F"></button>
+          <button class="cor-btn" data-cor="#AD1457" style="background:#AD1457"></button>
+          <button class="cor-btn" data-cor="#4E342E" style="background:#4E342E"></button>
+        </div>
+      </div>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" data-modal="modal-lista">Cancelar</button>
+        <button class="btn btn-primario" id="btn-salvar-lista">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmação -->
+  <div class="modal-overlay oculto" id="modal-confirmacao">
+    <div class="modal modal-pequeno">
+      <h2 class="modal-titulo" id="confirmacao-titulo">Confirmar</h2>
+      <p id="confirmacao-texto"></p>
+      <div class="modal-acoes">
+        <button class="btn btn-secundario" data-modal="modal-confirmacao">Cancelar</button>
+        <button class="btn btn-perigo" id="btn-confirmar-acao">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Área de toast notifications -->
+  <div id="toasts" class="toasts-container" aria-live="polite"></div>
+
+  </div><!-- /app-wrapper -->
+
+  <!-- Scripts — ordem importa: api.js cria "db", os demais dependem dele -->
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/scraper.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
