@@ -2,6 +2,8 @@
 // ui.js — Torre de Vigilância — Renderização de componentes visuais
 // ============================================================
 
+'use strict';
+
 // ── Toast notifications ────────────────────────────────────
 
 const _toastsContainer = () => document.getElementById('toasts');
@@ -55,7 +57,7 @@ function renderCardGibi(gibi, opcoes = {}) {
         src="${escHtml(gibi.capa_url)}"
         alt="Capa de ${escHtml(gibi.titulo)}"
         loading="lazy"
-        onerror="this.parentElement.innerHTML=placeholderCapa()"
+        data-onerror="true"
       />`
     : `<div class="card-capa-placeholder">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -94,6 +96,13 @@ function placeholderCapa() {
     </svg>
     <span style="font-size:11px;color:#6b6e8a">Sem capa</span>
   </div>`;
+}
+
+// Lidar com erro de carregamento de imagem (evita XSS)
+function onImagemErro(img) {
+  if (img && img.parentElement) {
+    img.parentElement.innerHTML = placeholderCapa();
+  }
 }
 
 // ── Tela de detalhe ────────────────────────────────────────

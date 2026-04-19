@@ -185,7 +185,7 @@
   </div>
 
   <!-- ── Wrapper do app (oculto até autenticar) ─────────── -->
-  <div id="app-wrapper" class="oculto" style="display:contents">
+  <div id="app-wrapper" class="oculto">
 
   <!-- ── Conteúdo principal ─────────────────────────────── -->
   <main class="main-content" id="main-content">
@@ -548,20 +548,20 @@
   <div id="toasts" class="toasts-container" aria-live="polite"></div>
 
   </div><!-- /app-wrapper -->
+<!-- Scripts — ordem importa: config.js primeiro -->
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/scraper.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
 
-  <!-- Trabalha com service workers antigos que podem servir assets em cache e causar comportamento desatualizado -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => registration.unregister());
-      });
-    }
-  </script>
-  <!-- Scripts — ordem importa: api.js cria "db", os demais dependem dele -->
-  <script src="js/api.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/scraper.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(r => console.log('[SW] Registrado:', r.scope))
+      .catch(e => console.log('[SW] Falha:', e));
+  }
+</script>
 </body>
 </html>
