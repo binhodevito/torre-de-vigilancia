@@ -367,9 +367,6 @@ try {
   const resultados = await buscarGibis(termo);
   Estado.resultadosBusca = resultados;
 
-  const colecao = await apiGetColecao();
-  Estado.colecao = colecao;
-
   if (resultados.length === 0) {
     container.innerHTML = `
       <div class="busca-vazia">
@@ -386,6 +383,8 @@ try {
 
   statusEl.textContent = `${resultados.length} resultado${resultados.length !== 1 ? 's' : ''} encontrado${resultados.length !== 1 ? 's' : ''}`;
 
+  // Use the already-loaded collection; refresh in background without blocking
+  const colecao = Estado.colecao || [];
   const mapa = new Map(colecao.map(g => [String(g.id_guia), g]));
   container.innerHTML = resultados.map(gibi => {
     const entry = mapa.get(String(gibi.id_guia));
@@ -393,6 +392,17 @@ try {
   }).join('');
 
   configurarEventosGrid(container, 'busca');
+
+  // Refresh collection in background and re-render badges if needed
+  apiGetColecao().then(colecaoAtual => {
+    Estado.colecao = colecaoAtual;
+    const mapaAtual = new Map(colecaoAtual.map(g => [String(g.id_guia), g]));
+    container.innerHTML = resultados.map(gibi => {
+      const entry = mapaAtual.get(String(gibi.id_guia));
+      return renderCardGibi(gibi, { naColecao: !!entry, statusColecao: entry?.status || '', mostrarBtnAdd: true });
+    }).join('');
+    configurarEventosGrid(container, 'busca');
+  }).catch(() => {});
 
 } catch (err) {
   statusEl.className   = 'busca-status erro';
@@ -1035,14 +1045,18 @@ document.getElementById('btn-salvar-perfil')?.addEventListener('click', async ()
   };
   btn.disabled = true; btn.textContent = 'Salvando…';
   try {
-    await atualizarPerfil(dados);
-    await atualizarSidebarUsuario();
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('Tempo esgotado. Tente novamente.')), 10000));
+    await Promise.race([atualizarPerfil(dados), timeout]);
+    atualizarSidebarUsuario().catch(() => {});
     atualizarAvatarPerfil(dados.avatar_url, dados.nome || 'U');
+    btn.textContent = 'Salvo!';
+    setTimeout(() => { btn.textContent = 'Salvar informações'; }, 2000);
     mostrarToast('Perfil atualizado!', 'sucesso');
   } catch (err) {
     mostrarToast(`Erro: ${err.message}`, 'erro');
+    btn.textContent = 'Salvar informações';
   } finally {
-    btn.disabled = false; btn.textContent = 'Salvar informações';
+    btn.disabled = false;
   }
 });
 
