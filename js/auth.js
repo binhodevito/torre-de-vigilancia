@@ -107,34 +107,46 @@ function configurarTelaLogin() {
   // ── Navegação entre formulários ──
   addClickListener('btn-ir-cadastro', () => {
     formLogin.classList.add('oculto');
+    formMagic.classList.add('oculto');
+    formEsqueci?.classList.add('oculto');
     formCadastro.classList.remove('oculto');
     document.getElementById('cadastro-email')?.focus();
   });
 
   addClickListener('btn-ir-login', () => {
     formCadastro.classList.add('oculto');
+    formMagic.classList.add('oculto');
+    formEsqueci?.classList.add('oculto');
     formLogin.classList.remove('oculto');
     document.getElementById('login-email')?.focus();
   });
 
   addClickListener('btn-ir-magic', () => {
     formLogin.classList.add('oculto');
+    formCadastro.classList.add('oculto');
+    formEsqueci?.classList.add('oculto');
     formMagic.classList.remove('oculto');
     document.getElementById('magic-email')?.focus();
   });
 
   addClickListener('btn-voltar-login', () => {
+    formCadastro.classList.add('oculto');
     formMagic.classList.add('oculto');
+    formEsqueci?.classList.add('oculto');
     formLogin.classList.remove('oculto');
   });
 
   addClickListener('btn-ir-esqueci', () => {
     formLogin.classList.add('oculto');
+    formCadastro.classList.add('oculto');
+    formMagic.classList.add('oculto');
     formEsqueci?.classList.remove('oculto');
     document.getElementById('esqueci-email')?.focus();
   });
 
   addClickListener('btn-voltar-esqueci', () => {
+    formCadastro.classList.add('oculto');
+    formMagic.classList.add('oculto');
     formEsqueci?.classList.add('oculto');
     formLogin.classList.remove('oculto');
   });
