@@ -85,125 +85,125 @@ function mostrarTelaApp() {
 }
 
 function configurarTelaLogin() {
-  const formLogin    = document.getElementById('form-login');
-  const formCadastro = document.getElementById('form-cadastro');
-  const formMagic    = document.getElementById('form-magic');
+  // Helper para adicionar event listener de forma segura
+  const addClickListener = (id, callback) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', callback);
+  };
 
-  const btnIrCadastro = document.getElementById('btn-ir-cadastro');
-  const btnIrLogin    = document.getElementById('btn-ir-login');
-  const btnIrMagic     = document.getElementById('btn-ir-magic');
-  const btnVoltarLogin = document.getElementById('btn-voltar-login');
-  const btnIrEsqueci   = document.getElementById('btn-ir-esqueci');
-  const btnVoltarEsqueci = document.getElementById('btn-voltar-esqueci');
-  const formEsqueci    = document.getElementById('form-esqueci');
+  // Obter referências aos elementos
+  const formLogin = document.getElementById('form-login');
+  const formCadastro = document.getElementById('form-cadastro');
+  const formMagic = document.getElementById('form-magic');
+  const formEsqueci = document.getElementById('form-esqueci');
 
   console.debug('[Auth] inicializando tela de login', {
     formLogin,
     formCadastro,
     formMagic,
     formEsqueci,
-    btnIrCadastro,
-    btnIrLogin,
-    btnIrMagic,
-    btnVoltarLogin,
-    btnIrEsqueci,
-    btnVoltarEsqueci,
   });
 
-  // Alterna entre os sub-formulários
-  btnIrCadastro?.addEventListener('click', () => {
+  // ── Navegação entre formulários ──
+  addClickListener('btn-ir-cadastro', () => {
     formLogin.classList.add('oculto');
     formCadastro.classList.remove('oculto');
-    document.getElementById('cadastro-email').focus();
+    document.getElementById('cadastro-email')?.focus();
   });
 
-  btnIrLogin?.addEventListener('click', () => {
+  addClickListener('btn-ir-login', () => {
     formCadastro.classList.add('oculto');
     formLogin.classList.remove('oculto');
-    document.getElementById('login-email').focus();
+    document.getElementById('login-email')?.focus();
   });
 
-  btnIrMagic?.addEventListener('click', () => {
+  addClickListener('btn-ir-magic', () => {
     formLogin.classList.add('oculto');
     formMagic.classList.remove('oculto');
-    document.getElementById('magic-email').focus();
+    document.getElementById('magic-email')?.focus();
   });
 
-  btnVoltarLogin?.addEventListener('click', () => {
+  addClickListener('btn-voltar-login', () => {
     formMagic.classList.add('oculto');
     formLogin.classList.remove('oculto');
   });
 
-  btnIrEsqueci?.addEventListener('click', () => {
+  addClickListener('btn-ir-esqueci', () => {
     formLogin.classList.add('oculto');
     formEsqueci?.classList.remove('oculto');
-    document.getElementById('esqueci-email').focus();
+    document.getElementById('esqueci-email')?.focus();
   });
 
-  btnVoltarEsqueci?.addEventListener('click', () => {
+  addClickListener('btn-voltar-esqueci', () => {
     formEsqueci?.classList.add('oculto');
     formLogin.classList.remove('oculto');
   });
 
-  // Submit: Login
-  document.getElementById('btn-login')?.addEventListener('click', async () => {
+  // ── Submits de formulários ──
+  addClickListener('btn-login', async () => {
     const email = document.getElementById('login-email').value.trim();
     const senha = document.getElementById('login-senha').value;
-    const btn   = document.getElementById('btn-login');
+    const btn = document.getElementById('btn-login');
     const erroEl = document.getElementById('login-erro');
 
-    if (!email || !senha) { erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+    if (!email || !senha) {
+      erroEl.textContent = 'Preencha e-mail e senha.';
+      return;
+    }
 
-    btn.disabled     = true;
-    btn.textContent  = 'Entrando…';
+    btn.disabled = true;
+    btn.textContent = 'Entrando…';
     erroEl.textContent = '';
 
     try {
       await fazerLogin(email, senha);
-      // ouvirMudancaAuth vai detectar e chamar mostrarTelaApp()
     } catch (err) {
       erroEl.textContent = err.message;
-      btn.disabled    = false;
+      btn.disabled = false;
       btn.textContent = 'Entrar';
     }
   });
 
-  // Submit: Cadastro
-  document.getElementById('btn-cadastro')?.addEventListener('click', async () => {
+  addClickListener('btn-cadastro', async () => {
     const email = document.getElementById('cadastro-email').value.trim();
     const senha = document.getElementById('cadastro-senha').value;
-    const btn   = document.getElementById('btn-cadastro');
+    const btn = document.getElementById('btn-cadastro');
     const erroEl = document.getElementById('cadastro-erro');
 
-    if (!email || !senha) { erroEl.textContent = 'Preencha e-mail e senha.'; return; }
+    if (!email || !senha) {
+      erroEl.textContent = 'Preencha e-mail e senha.';
+      return;
+    }
 
-    btn.disabled    = true;
+    btn.disabled = true;
     btn.textContent = 'Criando conta…';
     erroEl.textContent = '';
 
     try {
       await fazerCadastro(email, senha);
-      erroEl.style.color  = 'var(--lido)';
-      erroEl.textContent  = 'Conta criada! Verifique seu e-mail para confirmar.';
-      btn.disabled    = false;
+      erroEl.style.color = 'var(--lido)';
+      erroEl.textContent = 'Conta criada! Verifique seu e-mail para confirmar.';
+      btn.disabled = false;
       btn.textContent = 'Criar conta';
     } catch (err) {
-      erroEl.style.color  = '';
-      erroEl.textContent  = err.message;
-      btn.disabled    = false;
+      erroEl.style.color = '';
+      erroEl.textContent = err.message;
+      btn.disabled = false;
       btn.textContent = 'Criar conta';
     }
   });
 
-  // Submit: Magic link
-  document.getElementById('btn-magic')?.addEventListener('click', async () => {
-    const email  = document.getElementById('magic-email').value.trim();
-    const btn    = document.getElementById('btn-magic');
+  addClickListener('btn-magic', async () => {
+    const email = document.getElementById('magic-email').value.trim();
+    const btn = document.getElementById('btn-magic');
     const erroEl = document.getElementById('magic-erro');
 
-    if (!email) { erroEl.textContent = 'Informe seu e-mail.'; return; }
+    if (!email) {
+      erroEl.textContent = 'Informe seu e-mail.';
+      return;
+    }
 
-    btn.disabled    = true;
+    btn.disabled = true;
     btn.textContent = 'Enviando…';
     erroEl.textContent = '';
 
@@ -211,25 +211,27 @@ function configurarTelaLogin() {
       await enviarMagicLink(email);
       erroEl.style.color = 'var(--lido)';
       erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
-      btn.disabled    = false;
+      btn.disabled = false;
       btn.textContent = 'Enviar link';
     } catch (err) {
       erroEl.style.color = '';
       erroEl.textContent = err.message;
-      btn.disabled    = false;
+      btn.disabled = false;
       btn.textContent = 'Enviar link';
     }
   });
 
-  // Submit: Esqueci a senha
-  document.getElementById('btn-esqueci')?.addEventListener('click', async () => {
-    const email  = document.getElementById('esqueci-email').value.trim();
-    const btn    = document.getElementById('btn-esqueci');
+  addClickListener('btn-esqueci', async () => {
+    const email = document.getElementById('esqueci-email').value.trim();
+    const btn = document.getElementById('btn-esqueci');
     const erroEl = document.getElementById('esqueci-erro');
 
-    if (!email) { erroEl.textContent = 'Informe seu e-mail.'; return; }
+    if (!email) {
+      erroEl.textContent = 'Informe seu e-mail.';
+      return;
+    }
 
-    btn.disabled    = true;
+    btn.disabled = true;
     btn.textContent = 'Enviando…';
     erroEl.textContent = '';
 
@@ -237,16 +239,17 @@ function configurarTelaLogin() {
       await enviarRedefinicaoSenha(email);
       erroEl.style.color = 'var(--lido)';
       erroEl.textContent = 'Link enviado! Verifique sua caixa de entrada.';
-      btn.disabled    = false;
+      btn.disabled = false;
       btn.textContent = 'Enviar link';
     } catch (err) {
       erroEl.style.color = '';
       erroEl.textContent = err.message;
-      btn.disabled    = false;
+      btn.disabled = false;
       btn.textContent = 'Enviar link';
     }
   });
 
+  // ── Outros event listeners ──
   // Detecta se voltou do link de redefinição de senha (hash #redefinir-senha)
   if (location.hash === '#redefinir-senha') {
     const novaSenha = prompt('Digite sua nova senha (mínimo 6 caracteres):');
@@ -264,14 +267,14 @@ function configurarTelaLogin() {
   // Enter submete o formulário visível
   document.getElementById('tela-auth').addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
-    if (!formLogin.classList.contains('oculto'))    document.getElementById('btn-login')?.click();
+    if (!formLogin.classList.contains('oculto')) document.getElementById('btn-login')?.click();
     if (!formCadastro.classList.contains('oculto')) document.getElementById('btn-cadastro')?.click();
-    if (!formMagic.classList.contains('oculto'))    document.getElementById('btn-magic')?.click();
+    if (!formMagic.classList.contains('oculto')) document.getElementById('btn-magic')?.click();
     if (formEsqueci && !formEsqueci.classList.contains('oculto')) document.getElementById('btn-esqueci')?.click();
   });
 
   // Logout na sidebar
-  document.getElementById('btn-logout')?.addEventListener('click', async () => {
+  addClickListener('btn-logout', async () => {
     try {
       await fazerLogout();
       invalidarCacheLocal();
