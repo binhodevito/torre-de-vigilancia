@@ -137,6 +137,39 @@ modal.addEventListener('keydown', e => {
 });
 }
 
+// ── Perfil do usuário ──────────────────────────────────────
+
+async function getPerfil() {
+const { data: { user }, error } = await db.auth.getUser();
+if (error) throw new Error(error.message);
+return user;
+}
+
+async function atualizarPerfil(dados) {
+const { error } = await db.auth.updateUser({ data: dados });
+if (error) throw new Error(traduzirErroAuth(error.message));
+}
+
+async function atualizarEmail(novoEmail) {
+const { error } = await db.auth.updateUser({ email: novoEmail });
+if (error) throw new Error(traduzirErroAuth(error.message));
+}
+
+async function atualizarSenhaPerfil(novaSenha) {
+const { error } = await db.auth.updateUser({ password: novaSenha });
+if (error) throw new Error(traduzirErroAuth(error.message));
+}
+
+async function desativarConta() {
+const { error } = await db.auth.updateUser({
+  data: { desativado: true, data_desativacao: new Date().toISOString() },
+});
+if (error) throw new Error(traduzirErroAuth(error.message));
+await fazerLogout();
+}
+
+// ── UI da tela de login ────────────────────────────────────
+
 function configurarTelaLogin() {
 console.log('[Auth] configurarTelaLogin chamada');
 

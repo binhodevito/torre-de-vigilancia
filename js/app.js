@@ -61,8 +61,33 @@ configurarModais();
 
 apiGetColecao().then(c => { Estado.colecao = c || []; }).catch(() => {});
 
+await atualizarSidebarUsuario();
+
 const hash = location.hash.replace('#', '') || 'busca';
 await navegarPara(hash.split('/')[0], hash.split('/')[1]);
+}
+
+async function atualizarSidebarUsuario() {
+try {
+  const user = await getPerfil();
+  const meta = user?.user_metadata || {};
+  const nome = meta.nome || meta.username || user?.email?.split('@')[0] || 'Usuário';
+
+  const nomeEl   = document.getElementById('sidebar-nome-usuario');
+  const avatarEl = document.getElementById('sidebar-avatar-mini');
+  if (nomeEl)   nomeEl.textContent = nome;
+  if (avatarEl) {
+    if (meta.avatar_url) {
+      avatarEl.innerHTML = `<img src="${escHtml(meta.avatar_url)}" alt="${escHtml(nome)}" onerror="this.parentElement.textContent='${escHtml(obterIniciais(nome))}'" style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+    } else {
+      avatarEl.textContent = obterIniciais(nome);
+    }
+  }
+} catch (_) {}
+}
+
+function obterIniciais(nome) {
+return (nome || 'U').split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() || 'U';
 }
 
 // ── Roteamento ─────────────────────────────────────────────
@@ -112,6 +137,10 @@ switch (rota) {
     break;
   case 'sobre':
     document.getElementById('tela-sobre').classList.remove('oculto');
+    break;
+  case 'perfil':
+    document.getElementById('tela-perfil').classList.remove('oculto');
+    await carregarPerfil();
     break;
   default:
     document.getElementById('tela-busca').classList.remove('oculto');
@@ -900,3 +929,158 @@ if (e.ctrlKey && e.key === 'e') {
   mostrarToast('Coleção exportada!', 'sucesso');
 }
 });
+
+// ── Perfil ─────────────────────────────────────────────────
+
+let _perfilListenersOk = false;
+
+async function carregarPerfil() {
+try {
+  const user = await getPerfil();
+  const meta = user?.user_metadata || {};
+
+  document.getElementById('perfil-nome').value         = meta.nome         || '';
+  document.getElementById('perfil-username').value     = meta.username     || '';
+  document.getElementById('perfil-avatar-url').value   = meta.avatar_url   || '';
+  document.getElementById('perfil-email-atual').textContent = user?.email  || '—';
+  document.getElementById('perfil-email-erro').textContent  = '';
+  document.getElementById('perfil-senha-erro').textContent  = '';
+
+  atualizarAvatarPerfil(meta, meta.nome || user?.email || 'U');
+
+  if (!_perfilListenersOk) {
+    configurarEventosPerfil();
+    _perfilListenersOk = true;
+  }
+} catch (err) {
+  mostrarToast(`Erro ao carregar perfil: ${err.message}`, 'erro');
+}
+}
+
+function atualizarAvatarPerfil(meta, nomeRef) {
+const el = document.getElementById('perfil-avatar-preview');
+if (!el) return;
+if (meta.avatar_url) {
+  el.innerHTML = `<img src="${escHtml(meta.avatar_url)}" alt="Avatar"
+    onerror="this.parentElement.textContent='${escHtml(obterIniciais(nomeRef))}'"
+    style="width:100%;height:100%;border-radius:50%;object-fit:cover" />`;
+} else {
+  el.textContent = obterIniciais(nomeRef);
+}
+}
+
+function configurarEventosPerfil() {
+// Preview do avatar ao digitar URL
+document.getElementById('perfil-avatar-url')?.addEventListener('input', e => {
+  const meta = { avatar_url: e.target.value.trim() };
+  const nome = document.getElementById('perfil-nome').value || 'U';
+  atualizarAvatarPerfil(meta, nome);
+});
+
+// Salvar dados básicos
+document.getElementById('btn-salvar-perfil')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-salvar-perfil');
+  const dados = {
+    nome:       document.getElementById('perfil-nome').value.trim(),
+    username:   document.getElementById('perfil-username').value.trim().replace(/^@/, ''),
+    avatar_url: document.getElementById('perfil-avatar-url').value.trim(),
+  };
+  btn.disabled = true; btn.textContent = 'Salvando…';
+  try {
+    await atualizarPerfil(dados);
+    await atualizarSidebarUsuario();
+    mostrarToast('Perfil atualizado!', 'sucesso');
+  } catch (err) {
+    mostrarToast(`Erro: ${err.message}`, 'erro');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar informações';
+  }
+});
+
+// Alterar e-mail
+document.getElementById('btn-alterar-email')?.addEventListener('click', async () => {
+  const btn    = document.getElementById('btn-alterar-email');
+  const email  = document.getElementById('perfil-novo-email').value.trim();
+  const erroEl = document.getElementById('perfil-email-erro');
+  if (!email) { erroEl.textContent = 'Informe o novo e-mail.'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando…'; erroEl.textContent = '';
+  try {
+    await atualizarEmail(email);
+    erroEl.style.color  = 'var(--lido)';
+    erroEl.textContent  = 'Confirmação enviada para o novo e-mail. Verifique sua caixa de entrada.';
+    document.getElementById('perfil-novo-email').value = '';
+  } catch (err) {
+    erroEl.style.color = ''; erroEl.textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Alterar e-mail';
+  }
+});
+
+// Alterar senha
+document.getElementById('btn-alterar-senha')?.addEventListener('click', async () => {
+  const btn     = document.getElementById('btn-alterar-senha');
+  const nova    = document.getElementById('perfil-nova-senha').value;
+  const confirma = document.getElementById('perfil-confirmar-senha').value;
+  const erroEl  = document.getElementById('perfil-senha-erro');
+  erroEl.textContent = ''; erroEl.style.color = '';
+  if (!nova || nova.length < 6) { erroEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  if (nova !== confirma) { erroEl.textContent = 'As senhas não coincidem.'; return; }
+  btn.disabled = true; btn.textContent = 'Alterando…';
+  try {
+    await atualizarSenhaPerfil(nova);
+    document.getElementById('perfil-nova-senha').value    = '';
+    document.getElementById('perfil-confirmar-senha').value = '';
+    erroEl.style.color = 'var(--lido)';
+    erroEl.textContent = 'Senha alterada com sucesso!';
+  } catch (err) {
+    erroEl.textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Alterar senha';
+  }
+});
+
+// Exportar
+document.getElementById('btn-exportar-colecao-perfil')?.addEventListener('click', () => {
+  exportarColecaoJSON();
+  mostrarToast('Coleção exportada!', 'sucesso');
+});
+
+// Importar
+document.getElementById('btn-importar-colecao-perfil')?.addEventListener('click', () => {
+  document.getElementById('input-importar-json')?.click();
+});
+
+document.getElementById('input-importar-json')?.addEventListener('change', async e => {
+  const arquivo = e.target.files[0];
+  if (!arquivo) return;
+  const btn = document.getElementById('btn-importar-colecao-perfil');
+  btn.disabled = true; btn.textContent = 'Importando…';
+  try {
+    const resultado = await importarColecaoJSON(arquivo);
+    mostrarToast(`${resultado.importados} gibi(s) importado(s)!`, 'sucesso');
+    Estado.colecao = await apiGetColecao(true);
+  } catch (err) {
+    mostrarToast(`Erro na importação: ${err.message}`, 'erro');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Importar JSON`;
+    e.target.value = '';
+  }
+});
+
+// Desativar conta
+document.getElementById('btn-desativar-conta')?.addEventListener('click', () => {
+  abrirConfirmacao(
+    'Desativar conta',
+    'Tem certeza? Você será desconectado imediatamente. Para reativar, entre em contato com o desenvolvedor.',
+    async () => {
+      try {
+        await desativarConta();
+        invalidarCacheLocal();
+      } catch (err) {
+        mostrarToast(`Erro: ${err.message}`, 'erro');
+      }
+    }
+  );
+});
+}

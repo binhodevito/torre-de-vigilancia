@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#F2EDE3" />
-  <meta name="description" content="Controle de leitura e coleção de gibis brasileiros" />
+  <meta name="description" content="Controle de leitura e coleção de quadrinhos — gratuito, sem anúncios, feito para toda a comunidade de leitores" />
   <title>Torre de Vigilância</title>
 
   <link rel="icon" href="icons/icon-192.png" />
@@ -20,8 +20,16 @@
   <!-- ── Navbar desktop (lateral) ───────────────────────── -->
   <nav class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-bloco">
+      <a href="#busca" class="logo-bloco" data-rota="busca" title="Ir para início">
         <span class="logo-texto">Torre de<br>Vigilância</span>
+      </a>
+    </div>
+
+    <div class="sidebar-usuario" id="sidebar-usuario">
+      <div class="sidebar-usuario-avatar" id="sidebar-avatar-mini">?</div>
+      <div class="sidebar-usuario-info">
+        <span class="sidebar-usuario-nome" id="sidebar-nome-usuario">Usuário</span>
+        <a href="#perfil" class="sidebar-usuario-link nav-link" data-rota="perfil">Meu perfil →</a>
       </div>
     </div>
 
@@ -54,6 +62,14 @@
         Sair
       </button>
     </div>
+
+    <div class="sidebar-footer">
+      <a href="https://github.com/binhodevito/torre-de-vigilancia" target="_blank" rel="noopener" class="sidebar-footer-github" title="Código-fonte no GitHub">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        Open source no GitHub
+      </a>
+      <p class="sidebar-footer-copy">© 2026 <a href="https://fabiodevito.com.br" target="_blank" rel="noopener">Fábio Devito</a></p>
+    </div>
   </nav>
 
   <!-- ── Tela de autenticação (cobre tudo antes do login) ── -->
@@ -61,7 +77,7 @@
     <div class="auth-marca">
       <div class="auth-marca-topo">
         <span class="logo-texto auth-logo-texto">Torre de<br>Vigilância</span>
-        <p class="auth-tagline">Sua coleção de gibis, do seu jeito.</p>
+        <p class="auth-tagline">Sua coleção de quadrinhos, do seu jeito.</p>
       </div>
 
       <div class="auth-features">
@@ -89,7 +105,9 @@
       </div>
 
       <div class="auth-marca-rodape">
-        <p>Ferramenta gratuita, sem anúncios,<br>feita para a comunidade de quadrinhos brasileiros.</p>        <p class="auth-disclaimer">Dados fornecidos pelo <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>.</p>      </div>
+        <p>Ferramenta gratuita, sem anúncios,<br>feita por leitores para toda a comunidade de quadrinhos.</p>
+        <p class="auth-disclaimer">Dados fornecidos pelo <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>.</p>
+      </div>
     </div>
 
     <div class="auth-painel">
@@ -313,6 +331,92 @@
       <div id="conteudo-stats"></div>
     </section>
 
+    <!-- Tela: Perfil do usuário -->
+    <section class="tela oculto" id="tela-perfil">
+      <header class="tela-header">
+        <h1>Meu Perfil</h1>
+      </header>
+
+      <div class="perfil-container">
+
+        <!-- Avatar + dados básicos -->
+        <div class="perfil-card">
+          <div class="perfil-avatar-wrapper">
+            <div class="perfil-avatar" id="perfil-avatar-preview">?</div>
+          </div>
+          <div class="perfil-form">
+            <h2>Informações básicas</h2>
+            <div class="campo-grupo">
+              <label for="perfil-nome">Nome</label>
+              <input type="text" id="perfil-nome" placeholder="Seu nome" maxlength="60" autocomplete="name" />
+            </div>
+            <div class="campo-grupo">
+              <label for="perfil-username">Nome de usuário</label>
+              <input type="text" id="perfil-username" placeholder="@nomedeusuario" maxlength="30" autocomplete="username" />
+            </div>
+            <div class="campo-grupo">
+              <label for="perfil-avatar-url">URL da foto de perfil</label>
+              <input type="url" id="perfil-avatar-url" placeholder="https://..." />
+              <small class="campo-dica">Cole a URL de qualquer imagem pública</small>
+            </div>
+            <button class="btn btn-primario" id="btn-salvar-perfil">Salvar informações</button>
+          </div>
+        </div>
+
+        <!-- Alterar e-mail -->
+        <div class="perfil-secao">
+          <h2>E-mail</h2>
+          <p class="texto-sec">E-mail atual: <strong id="perfil-email-atual">—</strong></p>
+          <div class="campo-grupo">
+            <label for="perfil-novo-email">Novo e-mail</label>
+            <input type="email" id="perfil-novo-email" placeholder="novo@email.com" autocomplete="email" />
+          </div>
+          <p class="auth-erro" id="perfil-email-erro"></p>
+          <button class="btn btn-secundario" id="btn-alterar-email">Alterar e-mail</button>
+        </div>
+
+        <!-- Alterar senha -->
+        <div class="perfil-secao">
+          <h2>Alterar senha</h2>
+          <div class="campo-grupo">
+            <label for="perfil-nova-senha">Nova senha <span style="font-weight:400">(mín. 6 caracteres)</span></label>
+            <input type="password" id="perfil-nova-senha" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+          <div class="campo-grupo">
+            <label for="perfil-confirmar-senha">Confirmar nova senha</label>
+            <input type="password" id="perfil-confirmar-senha" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+          <p class="auth-erro" id="perfil-senha-erro"></p>
+          <button class="btn btn-secundario" id="btn-alterar-senha">Alterar senha</button>
+        </div>
+
+        <!-- Dados -->
+        <div class="perfil-secao">
+          <h2>Seus dados</h2>
+          <p class="texto-sec">Exporte ou importe sua coleção completa em formato JSON.</p>
+          <div class="perfil-botoes-dados">
+            <button class="btn btn-secundario" id="btn-exportar-colecao-perfil">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar JSON
+            </button>
+            <button class="btn btn-secundario" id="btn-importar-colecao-perfil">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Importar JSON
+            </button>
+          </div>
+          <input type="file" id="input-importar-json" accept=".json" style="display:none" />
+        </div>
+
+        <!-- Zona de perigo -->
+        <div class="perfil-secao perfil-zona-perigo">
+          <h2>Zona de perigo</h2>
+          <p class="texto-sec">Ao desativar sua conta, você será desconectado imediatamente. Para reativar, entre em contato pelo <a href="https://fabiodevito.com.br" target="_blank" rel="noopener">site do desenvolvedor</a>.</p>
+          <button class="btn btn-perigo" id="btn-desativar-conta">Desativar minha conta</button>
+        </div>
+
+      </div>
+    </section>
+
     <!-- Tela: Sobre (projeto + desenvolvedor) -->
     <section class="tela oculto" id="tela-sobre">
       <header class="tela-header">
@@ -334,12 +438,14 @@
           <h2>O que é a Torre de Vigilância</h2>
           <p>
             A Torre de Vigilância é uma ferramenta gratuita para organizar sua leitura
-            e coleção de gibis brasileiros. Registre o que leu, o que está lendo e o que
-            quer ler. Dê notas, escreva impressões, separe a coleção física do histórico
-            de leitura e crie listas temáticas.
+            e coleção de quadrinhos. Registre o que leu, o que está lendo e o que quer ler.
+            Dê notas, escreva impressões, separe a coleção física do histórico de leitura
+            e crie listas temáticas.
           </p>
           <p>
-            Cada usuário tem sua própria conta — sua coleção é privada e só sua.
+            Feita para toda a comunidade de leitores — não importa se você lê Marvel,
+            DC, mangá ou quadrinhos nacionais. Cada usuário tem sua própria conta,
+            privada e só sua.
           </p>
         </div>
 
@@ -348,8 +454,8 @@
           <ul class="manifesto-lista">
             <li>Gratuito para sempre, sem anúncios e sem fins comerciais</li>
             <li>Seus dados são seus — exportáveis a qualquer momento em JSON</li>
-            <li>Código aberto — qualquer um pode adaptar para uso próprio</li>
-            <li>Feito para a comunidade de quadrinhos brasileiros</li>
+            <li>Código aberto — <a href="https://github.com/binhodevito/torre-de-vigilancia" target="_blank" rel="noopener">disponível no GitHub</a> para qualquer um copiar e adaptar</li>
+            <li>Feito por leitores para toda a comunidade de quadrinhos</li>
           </ul>
         </div>
 
@@ -415,6 +521,14 @@
           <p>
             Desenvolvido por
             <a href="https://fabiodevito.com.br/" target="_blank" rel="noopener">Fábio Devito</a>
+            · 2026 ·
+            <a href="https://fabiodevito.com.br/" target="_blank" rel="noopener">fabiodevito.com.br</a>
+          </p>
+          <p class="sobre-rodape-sub">
+            <a href="https://github.com/binhodevito/torre-de-vigilancia" target="_blank" rel="noopener">
+              Projeto open source no GitHub ↗
+            </a>
+            — sinta-se livre para copiar, adaptar e criar a sua versão.
           </p>
           <p class="sobre-rodape-sub">
             Dados de catálogo: <a href="http://www.guiadosquadrinhos.com" target="_blank" rel="noopener">Guia dos Quadrinhos</a>
@@ -443,6 +557,10 @@
     <a href="#estatisticas" class="bottom-nav-item" data-rota="estatisticas">
       <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
       <span>Stats</span>
+    </a>
+    <a href="#perfil" class="bottom-nav-item" data-rota="perfil">
+      <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Perfil</span>
     </a>
   </nav>
 
