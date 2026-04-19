@@ -36,13 +36,14 @@ document.addEventListener('error', e => {
 }, true);
 
 ouvirMudancaAuth(async (event, session) => {
-  if (session) {
+  if (event === 'SIGNED_IN') {
     mostrarTelaApp();
     await iniciarApp();
-  } else {
+  } else if (event === 'SIGNED_OUT') {
     invalidarCacheLocal();
     mostrarTelaLogin();
   }
+  // TOKEN_REFRESHED, USER_UPDATED, PASSWORD_RECOVERY: ignora — sessão continua válida
 });
 
 const sessao = await getSessaoAtual();
@@ -54,7 +55,16 @@ if (sessao) {
 }
 });
 
+let _appIniciado = false;
+
 async function iniciarApp() {
+if (_appIniciado) {
+  // Já inicializado: apenas atualiza sidebar e navega para rota atual
+  await atualizarSidebarUsuario();
+  return;
+}
+_appIniciado = true;
+
 configurarNavegacao();
 configurarBusca();
 configurarFiltrosColecao();
