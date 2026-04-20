@@ -1,4 +1,4 @@
-# 📚 Pilha de Leitura
+# 📚 TORRE DE VIGILANCIA
 
 Ferramenta pessoal para controle de leitura e gestão de coleção de **gibis brasileiros**.
 
@@ -179,5 +179,5 @@ MIT — livre para uso pessoal e modificação. Compartilhe com a comunidade!
 
 ---
 
-*Feito com ❤️ para a comunidade de fãs de quadrinhos brasileiros.*
-*Em parceria e total respeito ao [Guia dos Quadrinhos](http://www.guiadosquadrinhos.com).*
+*Feito com ❤️ para a comunidade de fãs de quadrinhos.*
+*Em total respeito ao [Guia dos Quadrinhos](http://www.guiadosquadrinhos.com).*
